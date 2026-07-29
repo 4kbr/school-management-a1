@@ -20,8 +20,27 @@ func main() {
 			w.Write([]byte("hello GET Method on teachers route"))
 			fmt.Println("hello GET Method on teachers route")
 		case http.MethodPost:
+			// parse form data (necessary for x-www-form-urlencoded)
+			// r.Form is available only after calling ParseForm
+			err := r.ParseForm()
+			if err != nil {
+				http.Error(w, "failed to parse form", http.StatusBadRequest)
+				return
+			}
+
+			fmt.Println("form:", r.Form)
+
+			// iterate over parsed form data to inspect the values
+			// r.Form is map[string][]string — supports duplicate keys
+			for key, values := range r.Form {
+				for _, v := range values {
+					fmt.Printf("form[%s] = %s\n", key, v)
+				}
+			}
+
+			//todo: Prepare response data
+
 			w.Write([]byte("hello POST Method on teachers route"))
-			fmt.Println("hello POST Method on teachers route")
 		case http.MethodPut:
 			w.Write([]byte("hello PUT Method on teachers route"))
 			fmt.Println("hello PUT Method on teachers route")
@@ -31,10 +50,10 @@ func main() {
 		case http.MethodDelete:
 			w.Write([]byte("hello DELETE Method on teachers route"))
 			fmt.Println("hello DELETE Method on teachers route")
+		default:
+			w.Write([]byte("hello others Method on teachers route"))
+			fmt.Println("hello others Method on teachers route")
 		}
-		w.Write([]byte("hello others Method on teachers route"))
-		fmt.Println("hello others Method on teachers route")
-		return
 	})
 	http.HandleFunc("/students", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello students route"))
