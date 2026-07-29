@@ -182,15 +182,15 @@ Setiap layer terima dependency-nya lewat constructor. Kalau test tinggal ganti i
 
 ## 3. Convention Penamaan
 
-| Elemen | Convention | Contoh |
-|--------|-----------|--------|
-| File | `snake_case.go` | `teacher_handler.go` |
-| Interface | `TeacherRepository` | — |
-| Struct impl | lowercase + nama domain | `teacherRepository`, `teacherService` |
-| Constructor | `New` prefix | `NewTeacherRepository`, `NewTeacherService` |
-| Handler method | `Handle` prefix | `HandleGetAll`, `HandleCreate` |
-| Request DTO | `CreateTeacherRequest` | — |
-| Response DTO | `TeacherResponse` | — |
+| Elemen         | Convention              | Contoh                                      |
+| -------------- | ----------------------- | ------------------------------------------- |
+| File           | `snake_case.go`         | `teacher_handler.go`                        |
+| Interface      | `TeacherRepository`     | —                                           |
+| Struct impl    | lowercase + nama domain | `teacherRepository`, `teacherService`       |
+| Constructor    | `New` prefix            | `NewTeacherRepository`, `NewTeacherService` |
+| Handler method | `Handle` prefix         | `HandleGetAll`, `HandleCreate`              |
+| Request DTO    | `CreateTeacherRequest`  | —                                           |
+| Response DTO   | `TeacherResponse`       | —                                           |
 
 ---
 
@@ -393,8 +393,110 @@ air
 Server otomatis restart tiap kali `.go` file berubah.
 
 ### Tips
+
 - File `.air.toml` path relative dari `backend/`, sesuaikan `cmd` dan `bin` dengan struktur project.
 - Kalau ada folder baru yang perlu di-watch, tambah ke `include_dir`.
 - `kill_delay` bisa naikin kalau graceful shutdown butuh waktu.
 - Tambah `backend/tmp/` ke `.gitignore`.
+
+---
+
+## 10. Defer — Penggunaan & Best Practice
+
+### Apa itu `defer`
+
+`defer` menjadwalkan eksekusi function **setelah fungsi sekitarnya selesai** (return, panic, atau selesai normal). Biasanya untuk cleanup.
+
+### Sifat penting
+
+- Args di-**evaluasi di tempat** `defer` ditulis, bukan saat dieksekusi.
+- Dieksekusi LIFO (_last in, first out_) — kebalikan urutan defer.
+- Tetap jalan meskipun fungsi panic.
+
+### Use case di project real
+
+#### a. Tutup request body (`io.ReadCloser`)
+
+```go
+body, err := io.ReadAll(r.Body)
+if err != nil {
+    http.Error(w, "failed to read body", http.StatusBadRequest)
+    return
+}
+defer r.Body.Close()
 ```
+
+PENTING: `r.Body` otomatis di-close Go setelah handler return (Go 1.25+), tapi tetap eksplisit safest practice.
+
+#### b. Tutup rows hasil SQL query
+
+```go
+rows, err := db.QueryContext(ctx, "SELECT * FROM teachers")
+if err != nil {
+    return fmt.Errorf("query: %w", err)
+}
+defer rows.Close()
+
+for rows.Next() {
+    // scan
+}
+```
+
+Tanpa `defer rows.Close()`, connection pool bocor — koneksi DB gak balik ke pool.
+
+#### c. Rollback transaction kalau error
+
+```go
+tx, err := db.BeginTx(ctx, nil)
+if err != nil {
+    return fmt.Errorf("begin tx: %w", err)
+}
+defer tx.Rollback() // no-op kalau sudah Commit
+
+if err := doSomething(); err != nil {
+    return err // otomatis rollback via defer
+}
+
+return tx.Commit()
+```
+
+Pattern Standar Go: `defer tx.Rollback()` — kalau `Commit` sukses, `Rollback` jadi no-op. Kalau error, rollback otomatis.
+
+#### d. Tutup koneksi database pas shutdown
+
+```go
+func main() {
+    db, err := sql.Open("mysql", dsn)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+
+    // ... server jalan
+}
+```
+
+#### e. Release mutex
+
+```go
+mu.Lock()
+defer mu.Unlock()
+```
+
+#### f. Cancel context
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+```
+
+---
+
+### Perangkap (common mistakes)
+
+| Mistake                                                            | Kenapa salah                                             | Benar                                                 |
+| ------------------------------------------------------------------ | -------------------------------------------------------- | ----------------------------------------------------- |
+| `defer` di dalam loop                                              | Numpuk n gak release sampe fungsi selesai                | Eksekusi langsung, jangan defer                       |
+| `defer rows.Close()` setelah `for rows.Next()`                     | Rows ditutup sebelum dipake (kalau ada return)           | Taruh `defer` langsung setelah `db.Query`             |
+| `defer f()` dengan arg berubah                                     | Args di-evaluasi saat defer ditulis, bukan saat eksekusi | Passing pointer atau closure jika perlu nilai terbaru |
+| `defer` di `main()` untuk resource yang harus release sebelum exit | Cocok kok, tapi pastikan tau timing-nya                  | OK asal sesuai urutan                                 |
