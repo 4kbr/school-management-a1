@@ -499,4 +499,132 @@ defer cancel()
 | `defer` di dalam loop                                              | Numpuk n gak release sampe fungsi selesai                | Eksekusi langsung, jangan defer                       |
 | `defer rows.Close()` setelah `for rows.Next()`                     | Rows ditutup sebelum dipake (kalau ada return)           | Taruh `defer` langsung setelah `db.Query`             |
 | `defer f()` dengan arg berubah                                     | Args di-evaluasi saat defer ditulis, bukan saat eksekusi | Passing pointer atau closure jika perlu nilai terbaru |
-| `defer` di `main()` untuk resource yang harus release sebelum exit | Cocok kok, tapi pastikan tau timing-nya                  | OK asal sesuai urutan                                 |
+| `defer` di `main()` untuk resource yang harus release sebelum exit | Cocok kok, tapi pastikan tau timing-nya | OK asal sesuai urutan |
+
+---
+
+## 11. Linting & Formatting (gofmt, go vet, golangci-lint)
+
+Buat yang familiar dengan TypeScript: Go punya padanan ESLint & Prettier, dan yang keren sebagian udah jadi bagian dari ecosystem standar — bukan dependency eksternal.
+
+### 11.1. Perbandingan dengan TypeScript
+
+| TypeScript       | Go              | Keterangan                                                         |
+| ---------------- | --------------- | ------------------------------------------------------------------ |
+| Prettier         | `gofmt`         | Formatter resmi bawaan Go. Zero config, otomatis jalan di save     |
+| ESLint (dasar)   | `go vet`        | Static analysis bawaan Go. Deteksi bug pola umum                   |
+| ESLint (lengkap) | `golangci-lint` | Aggregator puluhan linter. Configurable, mirip plugin ESLint       |
+| —                | `goimports`     | Formatter + auto-manage import (sort, hapus unused)                |
+
+Poin penting yang beda dari TypeScript:
+
+- **`gofmt` gak bisa dikonfigurasi** — beda dengan Prettier yang punya `tabWidth`, `singleQuote`, dll. Ini intentional: konsistensi format seluruh ecosystem lebih penting daripada preferensi pribadi.
+- **`go vet`** itu linter, bukan formatter — memeriksa runtime correctness, bukan style.
+- **`golangci-lint`** (eksternal, community) — kalau mau kontrol level ala ESLint rules, ini yang paling deket. Umum dipakai di CI.
+- Gak ada config file yang wajib — `gofmt` + `go vet` cukup jalan sebagai baseline di project mana pun.
+
+### 11.2. `gofmt` — formatter bawaan (si "Prettier"-nya Go)
+
+**Cara kerja:** `gofmt` parse source code jadi **AST** (Abstract Syntax Tree) — bukan operasi regex — lalu mengeluarkan output kanonikal. Makanya konsisten di semua kode Go, termasuk yang ditulis orang lain. Kalau syntax error, dia menolak output (tidak memformat setengah-setengah).
+
+**Perintah dasar:**
+
+```bash
+gofmt -l .          # list file yang formatnya belum sesuai (dry run)
+gofmt -d file.go    # tampilkan diff format sebelum/sesudah (review dulu)
+gofmt -w file.go    # write — tulis langsung hasil format ke file
+go fmt ./...        # alias `gofmt -l -w` untuk semua package di folder
+```
+
+**Editor integration:** extension Go di VS Code/Goland otomatis jalanin `gofmt` tiap save. Kalau mau cek tanpa editor:
+
+```bash
+gofmt -l ./...
+```
+
+Kalau output kosong, semua file udah terformat.
+
+### 11.3. `goimports` — formatter + import management
+
+**Cara kerja:** sama seperti `gofmt`, plus memanage blok `import` — mengurutkan sesuai standard grouping (stdlib, third-party, internal project), dan menghapus import yang tidak terpakai.
+
+**Install & pakai:**
+
+```bash
+go install golang.org/x/tools/cmd/goimports@latest
+
+goimports -l .          # list file yang belum rapi
+goimports -w file.go    # format + rapikan import
+```
+
+Banyak editor bisa di-set pakai `goimports` sebagai formatter pengganti `gofmt` di save.
+
+### 11.4. `go vet` — linter bawaan (static analysis)
+
+**Cara kerja:** `go vet` menganalisis AST + type info, lalu melaporkan konstruksi yang mencurigakan — bukan sekadar style. Contoh yang dia deteksi:
+
+- Argument `Printf` tidak cocok dengan format string
+- `unreachable code` (kode setelah `return`)
+- `copy` dengan slice yang overlap
+- Struct literal yang lupa field (pada assignment ke struct kosong)
+
+**Perintah:**
+
+```bash
+go vet ./...
+```
+
+Jalankan sebelum commit, atau sisipkan di CI. Ini baseline yang wajib lewat di project mana pun.
+
+### 11.5. `golangci-lint` — aggregator linter ala ESLint (opsional)
+
+**Cara kerja:** satu binary yang menjalankan banyak linter sekaligus (paralel), lalu menampilkan hasil gabungan. Konfigurasi lewat file `.golangci.yml` — mirip `.eslintrc`.
+
+**Install:**
+
+```bash
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+```
+
+**Init config minimal** — bikin `.golangci.yml` di root project (`backend/`):
+
+```yaml
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck      # error harus di-handle atau di-ignore eksplisit
+    - govet         # go vet, otomatis jalan juga
+    - ineffassign   # deteksi assignment yang tidak efektif
+    - staticcheck   # linter populer dengan banyak rule
+    - unused        # deteksi kode yang tidak dipakai
+```
+
+**Perintah:**
+
+```bash
+golangci-lint run ./...
+golangci-lint run ./... --fix   # auto-fix yang bisa diperbaiki
+```
+
+Catatan: `errcheck` sangat relevan dengan project ini — sesuai prinsip "Error is value", error nggak boleh di-swallow.
+
+### 11.6. Alur kerja sehari-hari
+
+```
+menulis kode → editor format otomatis (gofmt/goimports)
+            → go vet ./...       (baseline, wajib)
+            → gofmt -l ./...     (pastikan output kosong)
+            → golangci-lint run ./...  (kalau sudah setup, sebelum commit)
+```
+
+**Cheat sheet:**
+
+| Kebutuhan                          | Perintah                        |
+| ---------------------------------- | ------------------------------- |
+| Format semua file di package       | `go fmt ./...`                  |
+| Cek file yang belum terformat      | `gofmt -l ./...`                |
+| Static analysis                    | `go vet ./...`                  |
+| Full lint                          | `golangci-lint run ./...`       |
+| Full lint + auto-fix               | `golangci-lint run ./... --fix` |
