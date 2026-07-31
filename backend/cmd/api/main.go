@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-type User struct {
+type user struct {
 	Name string `json:"name"`
 	Age  int16  `json:"age"`
 	City string `json:"city"`
@@ -38,15 +38,15 @@ func main() {
 
 			// iterate over parsed form data to inspect the values
 			// r.Form is map[string][]string — supports duplicate keys
-			response := make(map[string]interface{})
+			responseForm := make(map[string]interface{})
 			for key, values := range r.Form {
-				response[key] = values[0]
+				responseForm[key] = values[0]
 				fmt.Printf("form[%s] = %s\n", key, values[0])
 				// for _, v := range values {
 				// 	fmt.Printf("form[%s] = %s\n", key, v)
 				// }
 			}
-			fmt.Println("processed response map:", response)
+			fmt.Println("processed response map:", responseForm)
 
 			// RAW body (json)
 			// baca raw body, cocok untuk Content-Type: application/json
@@ -62,14 +62,53 @@ func main() {
 			fmt.Println("isi string RAW body:", string(body))
 
 			// // untuk menyimpan jsonnya bisa seperti ini
-			// var jsonData map[string]interface{}
+			// var userInstance map[string]interface{}
 			// atau explicit
-			var jsonData User
-			if err := json.Unmarshal(body, &jsonData); err != nil {
+			var userInstance user
+
+			// bisa seperti ini
+			// err := json.Unmarshal(body, &userInstance);
+			// if err != nil {...}
+			//
+			// atau bisa ini
+			if err := json.Unmarshal(body, &userInstance); err != nil {
 				http.Error(w, "invalid json body", http.StatusBadRequest)
 				return
 			}
-			fmt.Println("json body:", jsonData)
+			fmt.Println("Unmarshal json payload into userInstance:", userInstance)
+			fmt.Println("Receive user name as:", userInstance.Name)
+
+			// for response
+			responseJson := make(map[string]interface{})
+			for key, values := range r.Form {
+				responseJson[key] = values[0]
+			}
+
+			// unmarshal json
+			err = json.Unmarshal(body, &responseJson)
+			if err != nil {
+				return
+			}
+
+			fmt.Println("Unmarshal json response", responseJson)
+
+			// access the request, apa yang dibawa r ini
+			fmt.Println("Body:", r.Body)                         //cth: Body: &{0x3e1be33a2018 <nil> <nil> false true {{} {0 0}} true false false 0x64dac0}
+			fmt.Println("Form:", r.Form)                         //cth: Form: map[]
+			fmt.Println("Header:", r.Header)                     //cth: Header: map[Accept:[*/*] Accept-Encoding:[gzip, deflate, br] Cache-Control:[no-cache] Connection:[keep-alive] Content-Length:[73] Content-Type:[application/json] ...
+			fmt.Println("Context:", r.Context())                 //cth: Context: context.Background.WithValue(net/http context value http-server, *http.Server).WithValue(net/http context value local-addr, [::1]:3000).WithCancel.WithCancel
+			fmt.Println("ContentLength:", r.ContentLength)       //cth: ContentLength: 73
+			fmt.Println("Host:", r.Host)                         //cth: Host: localhost:3000
+			fmt.Println("Method:", r.Method)                     //cth: Method: POST
+			fmt.Println("Proto:", r.Proto)                       //cth: Proto: HTTP/1.1
+			fmt.Println("RemoteAddr:", r.RemoteAddr)             //cth: RemoteAddr: [::1]:36618
+			fmt.Println("RequestURI:", r.RequestURI)             //cth: RequestURI: /teachers
+			fmt.Println("TLS:", r.TLS)                           //cth: TLS: <nil>
+			fmt.Println("Trailer:", r.Trailer)                   //cth: Trailer: map[]
+			fmt.Println("TransferEncoding:", r.TransferEncoding) //cth: TransferEncoding: []
+			fmt.Println("URL:", r.URL)                           //cth: URL: /teachers
+			fmt.Println("UserAgent:", r.UserAgent())             //cth: UserAgent: PostmanRuntime/7.53.0
+			fmt.Println("URL Port():", r.URL.Port())             //cth: URL Port():
 
 			w.Write([]byte("hello POST Method on teachers route"))
 		case http.MethodPut:
