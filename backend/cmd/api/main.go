@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"school-management-api/internal/api/middlewares"
 )
 
 type user struct {
@@ -108,7 +109,7 @@ func main() {
 	// create custom server
 	server := &http.Server{
 		Addr:      port,
-		Handler:   mux,
+		Handler:   middlewares.SecurityHeaders(mux),
 		TLSConfig: tlsConfig,
 	}
 
