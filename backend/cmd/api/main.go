@@ -1,10 +1,10 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 )
 
 type user struct {
@@ -20,30 +20,6 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func teachersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-
-		// get parameter nya: /teacher/{id}
-		currentPath := r.URL.Path
-		fmt.Println("r.URL.Path:", currentPath)
-		path := strings.TrimPrefix(currentPath, "/teachers/")
-		teacherId := strings.TrimSuffix(path, "/")
-		fmt.Println("the ID is:", teacherId)
-
-		fmt.Println("Query params", r.URL.Query())
-		queryParams := r.URL.Query()
-
-		// contoh query params: /teachers?sortby=name&sortorder=ASC&key=bu
-		// queryParams.Get() -> ambil nilai pertama, kalau gak ada return ""
-		sortBy := queryParams.Get("sortby")
-		sortOrder := queryParams.Get("sortorder")
-		keyword := queryParams.Get("key")
-
-		// default sort order: kalau kosong, pakai "DESC"
-		if sortOrder == "" {
-			sortOrder = "DESC"
-		}
-
-		fmt.Printf("sortby: %v, sortorder: %v, key: %v\n", sortBy, sortOrder, keyword)
-
 		w.Write([]byte("hello GET Method on teachers route"))
 		fmt.Println("hello GET Method on teachers route")
 	case http.MethodPost:
@@ -108,16 +84,36 @@ func execsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func main() {
-	// todo: nanti pindahkan ke .env
+	// todo: pindahkan ke .env/config: port, cert path, key path
 	port := ":3000"
 
-	http.HandleFunc("/", rootHandler)
-	http.HandleFunc("/teachers/", teachersHandler)
-	http.HandleFunc("/students/", studentsHandler)
-	http.HandleFunc("/execs/", execsHandler)
+	// mux = "resepsionis" server: request masuk diteruskan ke handler sesuai path
+	// TODO: refactor ke method routing: mux.HandleFunc("GET /teachers", ...)
+	//       biar gak perlu switch r.Method manual di dalam handler
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", rootHandler)
+	mux.HandleFunc("/teachers/", teachersHandler)
+	mux.HandleFunc("/students/", studentsHandler)
+	mux.HandleFunc("/execs/", execsHandler)
+
+	// TLS: MinVersion TLS 1.2 — versi lama (SSLv3, TLS 1.0/1.1) sudah insecure
+	// cert.pem & key.pem: self-signed, cuma untuk development.
+	// Cara generate: lihat backend/docs/command.md
+	cert := "cert.pem"
+	key := "key.pem"
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
+
+	// create custom server
+	server := &http.Server{
+		Addr:      port,
+		Handler:   mux,
+		TLSConfig: tlsConfig,
+	}
 
 	fmt.Println("server is running on port:", port)
-	err := http.ListenAndServe(port, nil)
+	err := server.ListenAndServeTLS(cert, key)
 	if err != nil {
 		log.Fatalln("error starting the server", err)
 	}

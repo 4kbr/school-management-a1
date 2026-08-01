@@ -39,3 +39,8 @@ go.work
 *.tmp
 *.temp
 tmp/
+
+# certificate
+*.key
+*.pem
+*.csr
