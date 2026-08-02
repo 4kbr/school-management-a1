@@ -2,18 +2,87 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	mw "school-management-api/internal/api/middlewares"
+	"strconv"
+	"strings"
 )
 
-type user struct {
-	Name string `json:"name"`
-	Age  int16  `json:"age"`
-	City string `json:"city"`
+type Teacher struct {
+	ID        int    `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Class     string `json:"class"`
+	Subject   string `json:"subject"`
 }
+
+var (
+	teachers = make(map[int]Teacher)
+	// mutex    = &sync.Mutex{}
+	nextID = 1
+)
+
+func init() {
+	teachers[nextID] = Teacher{ID: nextID, FirstName: "John", LastName: "Doe", Class: "1A", Subject: "Math"}
+	nextID++
+	teachers[nextID] = Teacher{ID: nextID, FirstName: "Jane", LastName: "Doofy", Class: "2B", Subject: "Science"}
+	nextID++
+	teachers[nextID] = Teacher{ID: nextID, FirstName: "Jane", LastName: "Em", Class: "3B", Subject: "English"}
+}
+
+// handler teacher
+func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
+
+	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	idStr := strings.TrimPrefix(path, "/")
+	fmt.Println("idStr:", idStr)
+
+	w.Header().Set("Content-Type", "application/json")
+	if idStr == "" {
+
+		firstName := r.URL.Query().Get("first_name")
+		lastName := r.URL.Query().Get("last_name")
+
+		teacherList := make([]Teacher, 0, len(teachers))
+		for _, teacher := range teachers {
+			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
+				teacherList = append(teacherList, teacher)
+			}
+		}
+
+		response := struct {
+			Status string    `json:"status"`
+			Count  int       `json:"count"`
+			Data   []Teacher `json:"data"`
+		}{
+			Status: "success",
+			Count:  len(teacherList),
+			Data:   teacherList,
+		}
+
+		json.NewEncoder(w).Encode(response)
+	}
+
+	//handle path parameter
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	teacher, exists := teachers[id]
+	if !exists {
+		http.Error(w, "teacher not found", http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(teacher)
+}
+
+// handler teacher - END
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("hello root route"))
@@ -22,7 +91,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func teachersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		w.Write([]byte("hello GET Method on teachers route"))
+		getTeachersHandler(w, r)
 		fmt.Println("hello GET Method on teachers route")
 	case http.MethodPost:
 		body, err := io.ReadAll(r.Body)
@@ -44,9 +113,6 @@ func teachersHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		w.Write([]byte("hello DELETE Method on teachers route"))
 		fmt.Println("hello DELETE Method on teachers route")
-	default:
-		w.Write([]byte("hello others Method on teachers route"))
-		fmt.Println("hello others Method on teachers route")
 	}
 }
 func studentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -66,11 +132,9 @@ func studentsHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		w.Write([]byte("hello DELETE Method on students route"))
 		fmt.Println("hello DELETE Method on students route")
-	default:
-		w.Write([]byte("hello others Method on students route"))
-		fmt.Println("hello others Method on students route")
 	}
 }
+
 func execsHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -88,11 +152,9 @@ func execsHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		w.Write([]byte("hello DELETE Method on execs route"))
 		fmt.Println("hello DELETE Method on execs route")
-	default:
-		w.Write([]byte("hello others Method on execs route"))
-		fmt.Println("hello others Method on execs route")
 	}
 }
+
 func main() {
 	// todo: pindahkan ke .env/config: port, cert path, key path
 	port := ":3000"
