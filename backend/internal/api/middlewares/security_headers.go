@@ -1,12 +1,17 @@
 package middlewares
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 // SecurityHeaders menambahkan header keamanan ke setiap response.
 // Catatan: mayoritas header ini dirancang untuk web page, yang paling
 // relevan untuk REST API adalah nosniff + HSTS.
 func SecurityHeaders(next http.Handler) http.Handler {
+	fmt.Println("HPP middleware...")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("SecurityHeaders middleware being returned...")
 		// Matikan DNS prefetch — privasi: lokasi link tidak bocor via DNS lookup.
 		w.Header().Set("X-DNS-Prefetch-Control", "off")
 
@@ -54,5 +59,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
 
 		next.ServeHTTP(w, r)
+
+		fmt.Println("SecurityHeaders middleware ends...")
 	})
 }

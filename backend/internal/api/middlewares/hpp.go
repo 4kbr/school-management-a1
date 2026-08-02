@@ -14,6 +14,7 @@ type HPPOptions struct {
 }
 
 func Hpp(options HPPOptions) func(http.Handler) http.Handler {
+	fmt.Println("HPP middleware...")
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("HPP Middleware being returned...")

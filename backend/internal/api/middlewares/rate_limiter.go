@@ -23,9 +23,9 @@ func (rl *rateLimiter) resetVisitorCount() {
 	}
 }
 func (rl *rateLimiter) Middleware(next http.Handler) http.Handler {
-	fmt.Println("rate limiter middleware...")
+	fmt.Println("Rate limiter middleware...")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("rate limiter middleware being returned...")
+		fmt.Println("Rate limiter middleware being returned...")
 		rl.mu.Lock()
 		defer rl.mu.Unlock()
 

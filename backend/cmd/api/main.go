@@ -127,7 +127,20 @@ func main() {
 		Whitelist:                   []string{"allowedParam"},
 	}
 
-	secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.Compression(mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux))))))
+	secureMux :=
+		mw.Cors(
+			mw.SecurityHeaders(
+				rl.Middleware(
+					mw.ResponseTime(
+						mw.Hpp(hppOptions)(
+							mw.Compression(
+								mux,
+							),
+						),
+					),
+				),
+			),
+		)
 	// create custom server
 	server := &http.Server{
 		Addr:    port,
