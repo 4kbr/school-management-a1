@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	mw "school-management-api/internal/api/middlewares"
-	"time"
 )
 
 type user struct {
@@ -116,31 +115,35 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 	}
 
-	// init rate limiter
-	rl := mw.NewRateLimiter(10, time.Minute)
+	// // init rate limiter
+	// rl := mw.NewRateLimiter(10, time.Minute)
 
-	// setup hpp
-	hppOptions := mw.HPPOptions{
-		CheckQuery:                  true,
-		CheckBody:                   true,
-		CheckBodyOnlyForContentType: "application/json",
-		Whitelist:                   []string{"allowedParam"},
-	}
+	// // setup hpp
+	// hppOptions := mw.HPPOptions{
+	// 	CheckQuery:                  true,
+	// 	CheckBody:                   true,
+	// 	CheckBodyOnlyForContentType: "application/json",
+	// 	Whitelist:                   []string{"allowedParam"},
+	// }
 
-	secureMux :=
-		mw.Cors(
-			mw.SecurityHeaders(
-				rl.Middleware(
-					mw.ResponseTime(
-						mw.Hpp(hppOptions)(
-							mw.Compression(
-								mux,
-							),
-						),
-					),
-				),
-			),
-		)
+	// secureMux :=
+	// 	mw.Cors(
+	// 		mw.SecurityHeaders(
+	// 			rl.Middleware(
+	// 				mw.ResponseTime(
+	// 					mw.Hpp(hppOptions)(
+	// 						mw.Compression(
+	// 							mux,
+	// 						),
+	// 					),
+	// 				),
+	// 			),
+	// 		),
+	// 	)
+	secureMux := ApplyMiddlewares(mux, mw.SecurityHeaders)
+	// secureMux := ApplyMiddlewares(
+	// 	mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTime, rl.Middleware, mw.Cors,
+	// )
 	// create custom server
 	server := &http.Server{
 		Addr:    port,
@@ -155,4 +158,14 @@ func main() {
 	if err != nil {
 		log.Fatalln("error starting the server", err)
 	}
+}
+
+// Middleware is a function that wraps a httpHandler with additional functionallity
+type Middleware func(http.Handler) http.Handler
+
+func ApplyMiddlewares(handler http.Handler, middlewares ...Middleware) http.Handler {
+	for _, middleware := range middlewares {
+		handler = middleware(handler)
+	}
+	return handler
 }
