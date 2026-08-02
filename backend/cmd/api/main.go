@@ -117,12 +117,21 @@ func main() {
 	}
 
 	// init rate limiter
-	rl := mw.NewRateLimiter(3, time.Minute)
+	rl := mw.NewRateLimiter(10, time.Minute)
 
+	// setup hpp
+	hppOptions := mw.HPPOptions{
+		CheckQuery:                  true,
+		CheckBody:                   true,
+		CheckBodyOnlyForContentType: "application/json",
+		Whitelist:                   []string{"allowedParam"},
+	}
+
+	secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.Compression(mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux))))))
 	// create custom server
 	server := &http.Server{
 		Addr:    port,
-		Handler: rl.Middleware(mw.Compression(mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux))))),
+		Handler: secureMux,
 		// Handler: mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux))),
 		// Handler:   mw.Cors(mux),
 		TLSConfig: tlsConfig,
