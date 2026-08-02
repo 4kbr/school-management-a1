@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	mw "school-management-api/internal/api/middlewares"
+	"time"
 )
 
 type user struct {
@@ -115,10 +116,13 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 	}
 
+	// init rate limiter
+	rl := mw.NewRateLimiter(3, time.Minute)
+
 	// create custom server
 	server := &http.Server{
 		Addr:    port,
-		Handler: mw.Compression(mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux)))),
+		Handler: rl.Middleware(mw.Compression(mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux))))),
 		// Handler: mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux))),
 		// Handler:   mw.Cors(mux),
 		TLSConfig: tlsConfig,
