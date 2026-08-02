@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	mw "school-management-api/internal/api/middlewares"
@@ -24,7 +25,15 @@ func teachersHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello GET Method on teachers route"))
 		fmt.Println("hello GET Method on teachers route")
 	case http.MethodPost:
-		w.Write([]byte("hello POST Method on teachers route"))
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read request body", http.StatusBadRequest)
+			fmt.Println("failed to read request body on teachers route:", err)
+			return
+		}
+		defer r.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(body)
 		fmt.Println("hello POST Method on teachers route")
 	case http.MethodPut:
 		w.Write([]byte("hello PUT Method on teachers route"))
@@ -109,7 +118,8 @@ func main() {
 	// create custom server
 	server := &http.Server{
 		Addr:    port,
-		Handler: mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux))),
+		Handler: mw.Compression(mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux)))),
+		// Handler: mw.ResponseTime(mw.SecurityHeaders(mw.Cors(mux))),
 		// Handler:   mw.Cors(mux),
 		TLSConfig: tlsConfig,
 	}
