@@ -7,12 +7,20 @@ import (
 	"net/http"
 	mw "school-management-api/internal/api/middlewares"
 	"school-management-api/internal/api/router"
+	"school-management-api/internal/repositories/sqlconnect"
 	"school-management-api/pkg/utils"
 )
 
 // handler teacher - END
 
 func main() {
+
+	_, err := sqlconnect.ConnectDb("school_management")
+	if err != nil {
+		fmt.Println("Error---:", err)
+		panic(err)
+	}
+
 	// todo: pindahkan ke .env/config: port, cert path, key path
 	port := ":3000"
 
@@ -66,7 +74,7 @@ func main() {
 	}
 
 	fmt.Println("server is running on port:", port)
-	err := server.ListenAndServeTLS(cert, key)
+	err = server.ListenAndServeTLS(cert, key)
 	if err != nil {
 		log.Fatalln("error starting the server", err)
 	}

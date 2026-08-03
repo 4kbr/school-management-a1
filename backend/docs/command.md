@@ -8,16 +8,16 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 36
 
 keterangan:
 
-| Flag | Arti |
-|------|------|
-| `req` | Membuat certificate request — dengan `-x509` langsung menghasilkan self-signed certificate tanpa CSR |
-| `-x509` | Output langsung certificate self-signed (bukan CSR). Cocok untuk development |
-| `-newkey rsa:2048` | Generate private key baru, RSA 2048-bit |
-| `-nodes` | *no DES* — private key tanpa passphrase (biar gak diminta password tiap start server) |
-| `-keyout key.pem` | Simpan private key ke file `key.pem` |
-| `-out cert.pem` | Simpan certificate ke file `cert.pem` |
-| `-days 365` | Masa berlaku 365 hari |
-| `-config openssl.cnf` | Pakai konfigurasi dari `openssl.cnf` — isi cert & SAN otomatis, tanpa prompt interaktif |
+| Flag                  | Arti                                                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| `req`                 | Membuat certificate request — dengan `-x509` langsung menghasilkan self-signed certificate tanpa CSR |
+| `-x509`               | Output langsung certificate self-signed (bukan CSR). Cocok untuk development                         |
+| `-newkey rsa:2048`    | Generate private key baru, RSA 2048-bit                                                              |
+| `-nodes`              | _no DES_ — private key tanpa passphrase (biar gak diminta password tiap start server)                |
+| `-keyout key.pem`     | Simpan private key ke file `key.pem`                                                                 |
+| `-out cert.pem`       | Simpan certificate ke file `cert.pem`                                                                |
+| `-days 365`           | Masa berlaku 365 hari                                                                                |
+| `-config openssl.cnf` | Pakai konfigurasi dari `openssl.cnf` — isi cert & SAN otomatis, tanpa prompt interaktif              |
 
 ## kenapa pake openssl.cnf
 
@@ -52,12 +52,12 @@ curl -k https://localhost:3000/teachers
 
 Konfigurasi ada di `backend/docker-compose.yml`. Default env:
 
-| Env | Default |
-|-----|---------|
-| `DB_ROOT_PASSWORD` | `root` |
-| `DB_NAME` | `school_management` |
-| `DB_USER` | `app` |
-| `DB_PASSWORD` | `app_password` |
+| Env                | Default             |
+| ------------------ | ------------------- |
+| `DB_ROOT_PASSWORD` | `root`              |
+| `DB_NAME`          | `school_management` |
+| `DB_USER`          | `app`               |
+| `DB_PASSWORD`      | `app_password`      |
 
 ### Start database
 
@@ -120,3 +120,11 @@ Kredensial & DB awal sudah otomatis dibuat oleh compose di port `3306`.
 
 - Database & user dibuat sekali saat volume pertama kali di-init — ganti env name/kredensial sesudahnya hanya berlaku kalau volume di-reset (`docker compose down -v`).
 - Jangan ubah kredensial via env setelah volume ada data — harus `docker compose down -v` dulu biar apply.
+
+## Install mysql driver
+
+`database/sql` tidak bisa jalan sendiri dan perlu install drivernya, salah satunya untuk mysql bisa pakai command ini
+
+```bash
+go get github.com/go-sql-driver/mysql
+```
