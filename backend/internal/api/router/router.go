@@ -6,6 +6,7 @@ import (
 )
 
 func Router() *http.ServeMux {
+	// todo: saat ini memang sengaja pakai cara router versi go yang lama, nanti diganti ke versi terbaru
 	// mux = "resepsionis" server: request masuk diteruskan ke handler sesuai path
 	// TODO: refactor ke method routing: mux.HandleFunc("GET /teachers", ...)
 	//       biar gak perlu switch r.Method manual di dalam handler

@@ -13,6 +13,7 @@ Senior Go Backend Engineer Mentor — ngawal project ini dari awal sampe product
 | **Error is value** | Wrap errors properly, jangan di-swallow |
 | **Failing fast** | Validasi di awal, return early |
 | **YAGNI** | Jangan nambah abstraction sebelum ada kebutuhan nyata |
+| **Aware Token Efficiently** | Sadar penggunaan token dan gunakan sehemat mungkin untuk output terbaik |
 
 # Project Structure
 

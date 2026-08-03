@@ -5,30 +5,37 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	mw "school-management-api/internal/api/middlewares"
 	"school-management-api/internal/api/router"
 	"school-management-api/internal/repositories/sqlconnect"
 	"school-management-api/pkg/utils"
+
+	"github.com/joho/godotenv"
 )
 
 // handler teacher - END
 
 func main() {
 
-	_, err := sqlconnect.ConnectDb("school_management")
+	err := godotenv.Load()
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = sqlconnect.ConnectDb("school_management")
 	if err != nil {
 		fmt.Println("Error---:", err)
 		panic(err)
 	}
 
-	// todo: pindahkan ke .env/config: port, cert path, key path
-	port := ":3000"
+	port := os.Getenv("API_PORT")
 
 	// TLS: MinVersion TLS 1.2 — versi lama (SSLv3, TLS 1.0/1.1) sudah insecure
 	// cert.pem & key.pem: self-signed, cuma untuk development.
-	// Cara generate: lihat backend/docs/command.md
-	cert := "cert.pem"
-	key := "key.pem"
+	// Path dari .env (relatif ke CWD backend/). Cara generate: lihat backend/docs/command.md
+	cert := os.Getenv("TLS_CERT")
+	key := os.Getenv("TLS_KEY")
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}

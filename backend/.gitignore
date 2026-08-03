@@ -17,11 +17,13 @@ vendor/
 
 # Go workspace file
 go.work
+go.work.sum
 
 # Environment variables
 .env
 .env.local
-.env.*.local
+.env.*
+!.env.example
 
 # IDE specific files
 .vscode/
