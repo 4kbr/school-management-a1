@@ -1,0 +1,6 @@
+tmp/
+bin/
+dist/
+*.log
+.env
+*.pem
