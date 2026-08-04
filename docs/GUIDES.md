@@ -499,7 +499,7 @@ defer cancel()
 | `defer` di dalam loop                                              | Numpuk n gak release sampe fungsi selesai                | Eksekusi langsung, jangan defer                       |
 | `defer rows.Close()` setelah `for rows.Next()`                     | Rows ditutup sebelum dipake (kalau ada return)           | Taruh `defer` langsung setelah `db.Query`             |
 | `defer f()` dengan arg berubah                                     | Args di-evaluasi saat defer ditulis, bukan saat eksekusi | Passing pointer atau closure jika perlu nilai terbaru |
-| `defer` di `main()` untuk resource yang harus release sebelum exit | Cocok kok, tapi pastikan tau timing-nya | OK asal sesuai urutan |
+| `defer` di `main()` untuk resource yang harus release sebelum exit | Cocok kok, tapi pastikan tau timing-nya                  | OK asal sesuai urutan                                 |
 
 ---
 
@@ -509,12 +509,12 @@ Buat yang familiar dengan TypeScript: Go punya padanan ESLint & Prettier, dan ya
 
 ### 11.1. Perbandingan dengan TypeScript
 
-| TypeScript       | Go              | Keterangan                                                         |
-| ---------------- | --------------- | ------------------------------------------------------------------ |
-| Prettier         | `gofmt`         | Formatter resmi bawaan Go. Zero config, otomatis jalan di save     |
-| ESLint (dasar)   | `go vet`        | Static analysis bawaan Go. Deteksi bug pola umum                   |
-| ESLint (lengkap) | `golangci-lint` | Aggregator puluhan linter. Configurable, mirip plugin ESLint       |
-| —                | `goimports`     | Formatter + auto-manage import (sort, hapus unused)                |
+| TypeScript       | Go              | Keterangan                                                     |
+| ---------------- | --------------- | -------------------------------------------------------------- |
+| Prettier         | `gofmt`         | Formatter resmi bawaan Go. Zero config, otomatis jalan di save |
+| ESLint (dasar)   | `go vet`        | Static analysis bawaan Go. Deteksi bug pola umum               |
+| ESLint (lengkap) | `golangci-lint` | Aggregator puluhan linter. Configurable, mirip plugin ESLint   |
+| —                | `goimports`     | Formatter + auto-manage import (sort, hapus unused)            |
 
 Poin penting yang beda dari TypeScript:
 
@@ -594,11 +594,11 @@ run:
 
 linters:
   enable:
-    - errcheck      # error harus di-handle atau di-ignore eksplisit
-    - govet         # go vet, otomatis jalan juga
-    - ineffassign   # deteksi assignment yang tidak efektif
-    - staticcheck   # linter populer dengan banyak rule
-    - unused        # deteksi kode yang tidak dipakai
+    - errcheck # error harus di-handle atau di-ignore eksplisit
+    - govet # go vet, otomatis jalan juga
+    - ineffassign # deteksi assignment yang tidak efektif
+    - staticcheck # linter populer dengan banyak rule
+    - unused # deteksi kode yang tidak dipakai
 ```
 
 **Perintah:**
@@ -621,10 +621,191 @@ menulis kode → editor format otomatis (gofmt/goimports)
 
 **Cheat sheet:**
 
-| Kebutuhan                          | Perintah                        |
-| ---------------------------------- | ------------------------------- |
-| Format semua file di package       | `go fmt ./...`                  |
-| Cek file yang belum terformat      | `gofmt -l ./...`                |
-| Static analysis                    | `go vet ./...`                  |
-| Full lint                          | `golangci-lint run ./...`       |
-| Full lint + auto-fix               | `golangci-lint run ./... --fix` |
+| Kebutuhan                     | Perintah                        |
+| ----------------------------- | ------------------------------- |
+| Format semua file di package  | `go fmt ./...`                  |
+| Cek file yang belum terformat | `gofmt -l ./...`                |
+| Static analysis               | `go vet ./...`                  |
+| Full lint                     | `golangci-lint run ./...`       |
+| Full lint + auto-fix          | `golangci-lint run ./... --fix` |
+
+---
+
+## 12. Database Migration (golang-migrate)
+
+Versioned SQL migration untuk schema. Struktur data berubah seiring waktu — migrasi menjaga perubahan itu tercatat, reproducible, dan bisa rollback.
+
+### 12.1. Konsep
+
+- Setiap perubahan schema = satu pasang file: `xxx.up.sql` (maju) dan `xxx.down.sql` (mundur).
+- File diurutkan berdasarkan nomor: `000001_`, `000002_`, dst — diterapkan berurutan.
+- Tool mencatat versi yang sudah jalan di tabel `schema_migrations` di DB — migrasi tidak dijalankan dua kali.
+- **Aturan emas: jangan pernah mengedit file migrasi yang sudah di-apply.** Kalau butuh perubahan, buat file migrasi baru. Edit file lama = DB dan kode drift, down migration rusak.
+
+```
+backend/migrations/
+├── 000001_create_teachers.up.sql
+├── 000001_create_teachers.down.sql
+├── 000002_add_students.up.sql
+└── 000002_add_students.down.sql
+```
+
+### 12.2. Install CLI
+
+```bash
+go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+Flag `-tags 'mysql'` **wajib** — tanpa itu driver MySQL/MariaDB tidak ikut ter-bundle ke binary. (MariaDB kompatibel dengan driver `mysql`.)
+
+### 12.3. Inisiasi pertama
+
+Pastikan DB sudah jalan (bikin DB-nya otomatis oleh docker compose — lihat `backend/docker-compose.yml`, variabel `MARIADB_DATABASE`):
+
+```bash
+cd backend
+docker compose up -d db
+```
+
+Buat file migrasi pertama:
+
+```bash
+migrate create -ext sql -dir migrations -seq create_teachers
+```
+
+keterangan syntax:
+
+- `-ext sql` → file migrasi pakai SQL, bukan Go.
+- `-dir migrations` → folder tempat file migrasi.
+- `-seq` → pakai nomor urut (sequence) untuk nama file, bukan timestamp.
+- `create_teachers` → nama deskriptif untuk migrasi ini.
+
+Hasilnya dua file kosong:
+
+```
+migrations/
+├── 000001_create_teachers.up.sql
+└── 000001_create_teachers.down.sql
+```
+
+Isi `000001_create_teachers.up.sql`:
+
+```sql
+CREATE TABLE IF NOT EXISTS teachers (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    first_name  VARCHAR(100) NOT NULL,
+    last_name   VARCHAR(100) NOT NULL,
+    class       VARCHAR(50),
+    subject     VARCHAR(100),
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+Isi `000001_create_teachers.down.sql`:
+
+```sql
+DROP TABLE IF EXISTS teachers;
+```
+
+Sesuaikan kolom dengan domain model di `internal/models/` (contoh: `internal/models/teacher.go`).
+
+### 12.4. Run up (apply migrasi)
+
+```bash
+migrate -path migrations -database 'mysql://app:app_password@tcp(127.0.0.1:3306)/school_management' up
+```
+
+Yang terjadi:
+
+- Buat tabel `schema_migrations` (kalau belum ada) — catat versi `1`.
+- Jalankan `000001_create_teachers.up.sql`.
+- Dipanggil lagi → output `no change`, tidak jalan ulang.
+
+### 12.5. Down (rollback)
+
+```bash
+# mundur 1 step (hapus tabel teachers)
+migrate -path migrations -database 'mysql://app:app_password@tcp(127.0.0.1:3306)/school_management' down 1
+
+# mundur semua migrasi
+migrate -path migrations -database '...' down
+```
+
+`down 1` menjalankan `000001_create_teachers.down.sql` dan menurunkan versi di `schema_migrations`.
+
+### 12.6. Cek status
+
+```bash
+migrate -path migrations -database 'mysql://app:app_password@tcp(127.0.0.1:3306)/school_management' version   # versi aktif sekarang
+migrate -path migrations -database 'mysql://app:app_password@tcp(127.0.0.1:3306)/school_management' status    # semua file, applied / pending
+```
+
+### 12.7. Tambah table baru
+
+Jangan sentuh `000001_` yang sudah jalan. Buat file baru:
+
+```bash
+migrate create -ext sql -dir migrations -seq add_students
+```
+
+```
+migrations/
+├── 000001_create_teachers.up.sql     # sudah applied, jangan diubah
+├── 000001_create_teachers.down.sql
+├── 000002_add_students.up.sql        # file baru
+└── 000002_add_students.down.sql
+```
+
+Isi `000002_add_students.up.sql` (CREATE TABLE `students`), `.down.sql` (DROP), lalu:
+
+```bash
+migrate -path migrations -database 'mysql://app:app_password@tcp(127.0.0.1:3306)/school_management' up
+```
+
+Versi naik ke `2`. Langkah sama persis untuk tambah kolom, index, dll — selalu file migrasi baru.
+
+### 12.8. Format DSN
+
+MariaDB dipanggil lewat driver `mysql`. Format DSN untuk `-database`:
+
+```
+mysql://<user>:<password>@tcp(<host>:<port>)/<dbname>
+```
+
+Nilai default cocok dengan `backend/.env.example` dan `docker-compose.yml`:
+
+```bash
+# .env.example
+DB_USER="app"
+DB_PASSWORD="app_password"
+DB_NAME="school_management"
+DB_PORT=3306
+DB_HOST=127.0.0.1
+```
+
+DSN lengkap: `mysql://app:app_password@tcp(127.0.0.1:3306)/school_management`. Bisa didefinisikan sebagai variabel shell agar tidak ketik ulang tiap command:
+
+```bash
+export DB_URL='mysql://app:app_password@tcp(127.0.0.1:3306)/school_management'
+migrate -path migrations -database "$DB_URL" up
+```
+
+### 12.9. Opsional — run migrasi otomatis saat startup
+
+Alternatif untuk produksi: embed file migrasi ke binary dengan `go:embed`, jalankan sebelum server start. Binary jadi self-contained — tidak butuh CLI migrate di server.
+
+```go
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
+
+m, err := iofs.New(migrationsFS, "migrations")
+if err != nil {
+    return fmt.Errorf("load migrations: %w", err)
+}
+if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+    return fmt.Errorf("apply migrations: %w", err)
+}
+```
+
+Catatan: untuk app multi-instance (beberapa replica jalan bareng), migrasi lebih aman dijalankan sebagai step terpisah di CI sebelum deploy, bukan saat tiap instance start.
