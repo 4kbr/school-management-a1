@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -49,6 +50,13 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 // handler teacher
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
 	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	idStr := strings.TrimPrefix(path, "/")
 	fmt.Println("idStr:", idStr)
@@ -86,11 +94,28 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teacher, exists := teachers[id]
-	if !exists {
+	// call method get teacher here
+	// TODO: nanti buat method repository sendiri jangan langsung dihandler
+	var teacher models.Teacher
+	err = db.
+		QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).
+		Scan(
+			&teacher.ID,
+			&teacher.FirstName,
+			&teacher.LastName,
+			&teacher.Email,
+			&teacher.Class,
+			&teacher.Subject,
+		)
+	if err == sql.ErrNoRows {
 		http.Error(w, "teacher not found", http.StatusNotFound)
 		return
+	} else if err != nil {
+		fmt.Println(err)
+		http.Error(w, "database query error", http.StatusInternalServerError)
+		return
 	}
+
 	json.NewEncoder(w).Encode(teacher)
 }
 func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
