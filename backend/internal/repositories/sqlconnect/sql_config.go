@@ -8,7 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func ConnectDb(dbname string) (*sql.DB, error) {
+func ConnectDb() (*sql.DB, error) {
 	fmt.Println("try connecting to MariaDB")
 
 	dbUser := os.Getenv("DB_USER")

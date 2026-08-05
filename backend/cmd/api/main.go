@@ -23,7 +23,7 @@ func main() {
 		panic(err)
 	}
 
-	_, err = sqlconnect.ConnectDb("school_management")
+	_, err = sqlconnect.ConnectDb()
 	if err != nil {
 		fmt.Println("Error---:", err)
 		panic(err)
