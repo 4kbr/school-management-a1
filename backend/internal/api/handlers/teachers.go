@@ -63,15 +63,43 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if idStr == "" {
-
 		firstName := r.URL.Query().Get("first_name")
 		lastName := r.URL.Query().Get("last_name")
 
+		// repository query
+		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
+		var args []interface{}
+
+		if firstName != "" {
+			query += " AND first_name = ?"
+			args = append(args, firstName)
+		}
+		if lastName != "" {
+			query += " AND last_name = ?"
+			args = append(args, lastName)
+		}
+		rows, err := db.Query(query, args...)
+		if err != nil {
+			fmt.Println(err)
+			http.Error(w, "database query error", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
 		teacherList := make([]models.Teacher, 0, len(teachers))
-		for _, teacher := range teachers {
-			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
-				teacherList = append(teacherList, teacher)
+		for rows.Next() {
+			var teacher models.Teacher
+			err := rows.Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
+			if err != nil {
+				fmt.Println(err)
+				http.Error(w, "error scanning database result", http.StatusInternalServerError)
+				return
 			}
+			teacherList = append(teacherList, teacher)
+		}
+		if err := rows.Err(); err != nil { // ← yang hilang
+			http.Error(w, "error iterating rows", http.StatusInternalServerError)
+			return
 		}
 
 		response := struct {
