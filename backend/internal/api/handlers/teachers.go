@@ -9,23 +9,7 @@ import (
 	"school-management-api/internal/repositories/sqlconnect"
 	"strconv"
 	"strings"
-	"sync"
 )
-
-var (
-	teachers = make(map[int]models.Teacher)
-	mutex    = &sync.Mutex{}
-	nextID   = 1
-)
-
-func init() {
-	teachers[nextID] = models.Teacher{ID: nextID, FirstName: "John", LastName: "Doe", Class: "1A", Subject: "Math"}
-	nextID++
-	teachers[nextID] = models.Teacher{ID: nextID, FirstName: "Jane", LastName: "Doofy", Class: "2B", Subject: "Science"}
-	nextID++
-	teachers[nextID] = models.Teacher{ID: nextID, FirstName: "Jane", LastName: "Em", Class: "3B", Subject: "English"}
-	nextID++
-}
 
 func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -36,15 +20,21 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 		addTeacherHandler(w, r)
 		fmt.Println("hello POST Method on teachers route")
 	case http.MethodPut:
-		w.Write([]byte("hello PUT Method on teachers route"))
+		updateTeachersHandler(w, r)
 		fmt.Println("hello PUT Method on teachers route")
 	case http.MethodPatch:
+		// TODO: buat handlernya sendiri nanti
 		w.Write([]byte("hello PATCH Method on teachers route"))
 		fmt.Println("hello PATCH Method on teachers route")
 	case http.MethodDelete:
+		// TODO: buat handlernya sendiri nanti
 		w.Write([]byte("hello DELETE Method on teachers route"))
 		fmt.Println("hello DELETE Method on teachers route")
 	}
+}
+
+func updateTeachersHandler(w http.ResponseWriter, r *http.Request) {
+	panic("unimplemented")
 }
 
 func isValidSortOrder(order string) bool {
@@ -94,7 +84,7 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer rows.Close()
 
-		teacherList := make([]models.Teacher, 0, len(teachers))
+		teacherList := make([]models.Teacher, 0)
 		for rows.Next() {
 			var teacher models.Teacher
 			err := rows.Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
