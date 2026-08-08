@@ -29,6 +29,7 @@ func isValidSortField(field string) bool {
 
 // handler teacher
 
+// GET /teachers/
 func GetTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 	db, err := sqlconnect.ConnectDb()
@@ -124,7 +125,8 @@ func addFilters(r *http.Request, query string, args []interface{}) (string, []in
 	return query, args
 }
 
-func GetTeacherHandlerById(w http.ResponseWriter, r *http.Request) {
+// GET /teachers/{id}
+func GetOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 
 	db, err := sqlconnect.ConnectDb()
 	if err != nil {
@@ -170,6 +172,7 @@ func GetTeacherHandlerById(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(teacher)
 }
 
+// POST /teachers/
 func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 	db, err := sqlconnect.ConnectDb()
@@ -223,8 +226,8 @@ func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PUT /teachers/{id}
-func UpdateTeacherHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
+func UpdateOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println(err)
@@ -282,8 +285,105 @@ func UpdateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func PatchTeacherHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
+// PATCH /teachers/ — batch update banyak teacher dalam SATU transaksi.
+// Body: [{"id":100,"first_name":"X"}, {"id":104,"class":"9-Z"}, ...]
+// Kalau salah satu gagal, SEMUA di-rollback (all-or-nothing).
+func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "unable to connect to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	var updates []map[string]interface{}
+	err = json.NewDecoder(r.Body).Decode(&updates)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "error starting transaction", http.StatusInternalServerError)
+		return
+	}
+	// Rollback otomatis kalau ada error di tengah; no-op kalau sudah Commit
+	defer tx.Rollback()
+
+	updatedTeachers := make([]models.Teacher, 0, len(updates))
+	for _, update := range updates {
+		// JSON decode angka jadi float64 — konversi manual, BUKAN .(int)
+		idFloat, ok := update["id"].(float64)
+		if !ok {
+			http.Error(w, "invalid teacher id in update", http.StatusBadRequest)
+			return
+		}
+		id := int(idFloat)
+
+		var teacher models.Teacher
+		// pakai tx.QueryRow (bukan db) biar konsisten dalam transaksi
+		err := tx.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(
+			&teacher.ID,
+			&teacher.FirstName,
+			&teacher.LastName,
+			&teacher.Email,
+			&teacher.Class,
+			&teacher.Subject,
+		)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "teacher not found", http.StatusNotFound)
+				return
+			}
+			log.Println(err)
+			http.Error(w, "unable to retrieve teacher", http.StatusInternalServerError)
+			return
+		}
+
+		applyUpdates(&teacher, update)
+
+		_, err = tx.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?",
+			teacher.FirstName,
+			teacher.LastName,
+			teacher.Email,
+			teacher.Class,
+			teacher.Subject,
+			teacher.ID)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "error updating teacher", http.StatusInternalServerError)
+			return
+		}
+
+		updatedTeachers = append(updatedTeachers, teacher)
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
+		http.Error(w, "error committing transaction", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	response := struct {
+		Status string           `json:"status"`
+		Count  int              `json:"count"`
+		Data   []models.Teacher `json:"data"`
+	}{
+		Status: "success",
+		Count:  len(updatedTeachers),
+		Data:   updatedTeachers,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+// PATCH /teachers/{id}
+func PatchOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println(err)
@@ -326,25 +426,33 @@ func PatchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// // apply updates
-	// for k, v := range updates {
-	// 	switch k {
-	// 	case "first_name":
-	// 		existingTeacher.FirstName = v.(string)
-	// 	case "last_name":
-	// 		existingTeacher.LastName = v.(string)
-	// 	case "email":
-	// 		existingTeacher.Email = v.(string)
-	// 	case "class":
-	// 		existingTeacher.Class = v.(string)
-	// 	case "subject":
-	// 		existingTeacher.Subject = v.(string)
-	// 	}
-	// }
+	// apply updates — rekap ke helper applyUpdates (dipakai batch + single)
+	applyUpdates(&existingTeacher, updates)
 
-	// apply updates using reflect
-	// teacherVal = nilai field struct yang bisa diubah (pointer dulu, terus .Elem())
-	teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	_, err = db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?",
+		existingTeacher.FirstName,
+		existingTeacher.LastName,
+		existingTeacher.Email,
+		existingTeacher.Class,
+		existingTeacher.Subject,
+		existingTeacher.ID)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "error updating teacher", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(existingTeacher)
+}
+
+// applyUpdates mengubah field struct models.Teacher sesuai map updates (via reflect).
+// - Cocokkan key body ke json tag field struct
+// - Skip "id" biar user gak bisa ubah ID
+// - type-assertion aman: value tipe salah di-skip, bukan panic
+func applyUpdates(existingTeacher *models.Teacher, updates map[string]interface{}) {
+	// .Elem() karena pointer — biar field bisa di-Set
+	teacherVal := reflect.ValueOf(existingTeacher).Elem()
 	// metadata tipe: nama field + json tag
 	teacherType := teacherVal.Type()
 
@@ -383,26 +491,16 @@ func PatchTeacherHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
-	_, err = db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?",
-		existingTeacher.FirstName,
-		existingTeacher.LastName,
-		existingTeacher.Email,
-		existingTeacher.Class,
-		existingTeacher.Subject,
-		existingTeacher.ID)
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "error updating teacher", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(existingTeacher)
 }
 
-func DeleteTeacherHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
+// DELETE /teachers/
+func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
+	panic("not implemented yet")
+}
+
+// DELETE /teachers/{id}
+func DeleteOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println(err)
@@ -448,11 +546,4 @@ func DeleteTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		ID:     id,
 	}
 	json.NewEncoder(w).Encode(response)
-}
-
-func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	panic("not implemented yet")
-}
-func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	panic("not implemented yet")
 }
