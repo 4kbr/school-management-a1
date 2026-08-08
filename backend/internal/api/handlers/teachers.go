@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"school-management-api/internal/models"
 	"school-management-api/internal/repositories/sqlconnect"
 	"strconv"
@@ -335,19 +336,61 @@ func patchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// apply updates
+	// // apply updates
+	// for k, v := range updates {
+	// 	switch k {
+	// 	case "first_name":
+	// 		existingTeacher.FirstName = v.(string)
+	// 	case "last_name":
+	// 		existingTeacher.LastName = v.(string)
+	// 	case "email":
+	// 		existingTeacher.Email = v.(string)
+	// 	case "class":
+	// 		existingTeacher.Class = v.(string)
+	// 	case "subject":
+	// 		existingTeacher.Subject = v.(string)
+	// 	}
+	// }
+
+	// apply updates using reflect
+	// teacherVal = nilai field struct yang bisa diubah (pointer dulu, terus .Elem())
+	teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	// metadata tipe: nama field + json tag
+	teacherType := teacherVal.Type()
+
 	for k, v := range updates {
-		switch k {
-		case "first_name":
-			existingTeacher.FirstName = v.(string)
-		case "last_name":
-			existingTeacher.LastName = v.(string)
-		case "email":
-			existingTeacher.Email = v.(string)
-		case "class":
-			existingTeacher.Class = v.(string)
-		case "subject":
-			existingTeacher.Subject = v.(string)
+		// id gak boleh di-update lewat reflect — skip biar user gak bisa ubah ID
+		if k == "id" {
+			continue
+		}
+
+		// loop tiap field struct, cari yang json tag-nya cocok sama key body
+		for i := 0; i < teacherVal.NumField(); i++ {
+			field := teacherType.Field(i)
+			jsonTag := field.Tag.Get("json")
+			// Extract the field name from json tag (e.g., "first_name,omitempty" -> "first_name")
+			jsonFieldName := strings.Split(jsonTag, ",")[0]
+
+			if jsonFieldName == k {
+				fieldVal := teacherVal.Field(i)
+				// field cuma bisa di-Set kalau exported + lewat pointer (.Elem())
+				if fieldVal.CanSet() {
+					switch fieldVal.Kind() {
+					case reflect.String:
+						// type-assertion AMAN: kalau v bukan string, skip, jangan panic
+						if str, ok := v.(string); ok {
+							fieldVal.SetString(str)
+						}
+					case reflect.Int, reflect.Int64:
+						// JSON decode angka jadi float64 — konversi dulu ke int64
+						if intVal, ok := v.(float64); ok {
+							fieldVal.SetInt(int64(intVal))
+						}
+					}
+				}
+				// udah ketemu field yang cocok, stop loop field, lanjut key berikutnya
+				break
+			}
 		}
 	}
 
