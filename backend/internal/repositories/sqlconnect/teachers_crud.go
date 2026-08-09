@@ -3,6 +3,7 @@ package sqlconnect
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/url"
 	"reflect"
 	"strings"
@@ -185,8 +186,11 @@ func CreateTeachers(teachers []models.Teacher) ([]models.Teacher, error) {
 	defer db.Close()
 
 	// 3. Prepare statement INSERT biar dipakai ulang tiap loop (lebih efisien & aman)
+	// stmt, err := db.Prepare(
+	// 	"INSERT INTO teachers (first_name, last_name, email, class, subject) VALUES (?,?,?,?,?)",
+	// )
 	stmt, err := db.Prepare(
-		"INSERT INTO teachers (first_name, last_name, email, class, subject) VALUES (?,?,?,?,?)",
+		generateInsertQuery(models.Teacher{}),
 	)
 	if err != nil {
 		return nil, utils.ErrorHandler(err, "error inserting data into database")
@@ -199,7 +203,9 @@ func CreateTeachers(teachers []models.Teacher) ([]models.Teacher, error) {
 
 	// 6. Loop tiap teacher, eksekusi insert, lalu isi ID dari LastInsertId
 	for i, newTeacher := range teachers {
-		res, err := stmt.Exec(newTeacher.FirstName, newTeacher.LastName, newTeacher.Email, newTeacher.Class, newTeacher.Subject)
+		// res, err := stmt.Exec(newTeacher.FirstName, newTeacher.LastName, newTeacher.Email, newTeacher.Class, newTeacher.Subject)
+		values := getStructValues(newTeacher)
+		res, err := stmt.Exec(values...)
 		if err != nil {
 			return nil, utils.ErrorHandler(err, "error inserting data into database")
 		}
@@ -217,6 +223,67 @@ func CreateTeachers(teachers []models.Teacher) ([]models.Teacher, error) {
 
 	// 9. Kembalikan slice teacher yang sudah berisi ID
 	return addedTeachers, nil
+}
+
+// generateInsertQuery membuat query INSERT dinamis dari struct tags `db`.
+// Contoh hasil: "INSERT INTO teachers (first_name, last_name, ...) VALUES (?,?,...)"
+// Kalau di real world biasanya banyak ORM sudah handle ini, tapi kita belajar dalamnya.
+func generateInsertQuery(model interface{}) string {
+	// 1. Ambil type info struct lewat reflect (metadata field + tag)
+	modelType := reflect.TypeOf(model)
+	// 2. Siapkan penampung nama kolom & placeholder (?)
+	var columns, placeholders string
+
+	// 3. Loop tiap field struct
+	for i := 0; i < modelType.NumField(); i++ {
+		// 4. Baca tag `db` pada field
+		dbTag := modelType.Field(i).Tag.Get("db")
+		// 5. Rapikan tag: buang suffix ",omitempty" kalau ada
+		dbTag = strings.TrimSuffix(dbTag, ",omitempty")
+
+		// 6. Lewati field tanpa tag db atau field id (auto-increment, tidak ikut INSERT)
+		if dbTag != "" && dbTag != "id" {
+			// 7. Tambahkan koma pemisah untuk kolom & placeholder berikutnya
+			if columns != "" {
+				columns += ", "
+				placeholders += ", "
+			}
+			// 8. Akumulasi nama kolom dan placeholder
+			columns += dbTag
+			placeholders += "?"
+		}
+	}
+
+	// 9. Susun query INSERT lengkap
+	return fmt.Sprintf("INSERT INTO teachers (%s) VALUES (%s)", columns, placeholders)
+}
+
+// getStructValues mengambil nilai tiap field struct (berdasarkan tag `db`)
+// dalam urutan yang SAMA dengan kolom di generateInsertQuery.
+func getStructValues(model interface{}) []interface{} {
+	// 1. Ambil value + type info struct lewat reflect
+	modelValue := reflect.ValueOf(model)
+	modelType := modelValue.Type()
+	// 2. Siapkan slice penampung nilai field
+	values := []interface{}{}
+
+	// 3. Loop tiap field struct
+	for i := 0; i < modelType.NumField(); i++ {
+		// 4. Baca tag `db` pada field
+		dbTag := modelType.Field(i).Tag.Get("db")
+		// 5. Rapikan tag: buang suffix ",omitempty" kalau ada
+		dbTag = strings.TrimSuffix(dbTag, ",omitempty")
+
+		// 6. Lewati field tanpa tag db atau field id — jumlah values harus
+		//    sama dengan jumlah placeholder di generateInsertQuery
+		if dbTag != "" && dbTag != "id" {
+			// 7. Ambil nilai field dan append ke slice
+			values = append(values, modelValue.Field(i).Interface())
+		}
+	}
+
+	// 8. Kembalikan slice nilai field
+	return values
 }
 
 // UpdateTeacher melakukan full UPDATE satu teacher berdasarkan id.
