@@ -388,12 +388,12 @@ func PatchTeachers(updates []map[string]interface{}) ([]models.Teacher, error) {
 
 	// 6. Loop tiap update
 	for _, update := range updates {
-		// 7. JSON decode angka jadi float64 — konversi manual, BUKAN .(int)
-		idFloat, ok := update["id"].(float64)
+		// 7. Ambil id dari map. Sebelumnya dari JSON decode (float64); kini
+		//    dikirim sebagai int dari DTO — konversi manual biar aman
+		id, ok := update["id"].(int)
 		if !ok {
 			return nil, ErrInvalidTeacherID
 		}
-		id := int(idFloat)
 
 		// 8. SELECT teacher by id memakai tx biar dalam transaksi yang sama
 		var teacher models.Teacher
