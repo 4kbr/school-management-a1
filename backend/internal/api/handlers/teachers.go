@@ -3,8 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
 	"net/http"
 	"school-management-api/internal/models"
 	"school-management-api/internal/repositories/sqlconnect"
@@ -18,8 +16,7 @@ func GetTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// seluruh proses (build query filter/sort + connect + query + scan) di repository
 	teacherList, err := sqlconnect.GetTeachers(r.URL.Query())
 	if err != nil {
-		fmt.Println(err)
-		http.Error(w, "database query error", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -40,14 +37,13 @@ func GetTeachersHandler(w http.ResponseWriter, r *http.Request) {
 // GET /teachers/{id}
 func GetOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
-	fmt.Println("idStr:", idStr)
 
 	w.Header().Set("Content-Type", "application/json")
 
 	// handle path parameter
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		fmt.Println(err)
+		http.Error(w, "invalid teacher id", http.StatusBadRequest)
 		return
 	}
 
@@ -57,8 +53,7 @@ func GetOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "teacher not found", http.StatusNotFound)
 		return
 	} else if err != nil {
-		fmt.Println(err)
-		http.Error(w, "database query error", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -77,8 +72,7 @@ func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	// delegasikan seluruh proses insert ke repository
 	addedTeachers, err := sqlconnect.CreateTeachers(newTeachers)
 	if err != nil {
-		fmt.Println(err)
-		http.Error(w, "error inserting data into database", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -100,7 +94,6 @@ func UpdateOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		log.Println(err)
 		http.Error(w, "invalid teacher id", http.StatusBadRequest)
 		return
 	}
@@ -108,7 +101,6 @@ func UpdateOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	var updatedTeacher models.Teacher
 	err = json.NewDecoder(r.Body).Decode(&updatedTeacher)
 	if err != nil {
-		log.Println(err)
 		http.Error(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
@@ -120,8 +112,7 @@ func UpdateOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "teacher not found", http.StatusNotFound)
 			return
 		}
-		log.Println(err)
-		http.Error(w, "unable to retrieve database", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -129,8 +120,7 @@ func UpdateOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	updatedTeacher.ID = existingTeacher.ID
 	err = sqlconnect.UpdateTeacher(updatedTeacher)
 	if err != nil {
-		log.Println(err)
-		http.Error(w, "error updating teacher", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -145,7 +135,6 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	var updates []map[string]interface{}
 	err := json.NewDecoder(r.Body).Decode(&updates)
 	if err != nil {
-		log.Println(err)
 		http.Error(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
@@ -159,8 +148,7 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, sqlconnect.ErrInvalidTeacherID):
 			http.Error(w, "invalid teacher id in update", http.StatusBadRequest)
 		default:
-			log.Println(err)
-			http.Error(w, "error updating teacher", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
@@ -183,7 +171,6 @@ func PatchOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		log.Println(err)
 		http.Error(w, "invalid teacher id", http.StatusBadRequest)
 		return
 	}
@@ -191,7 +178,6 @@ func PatchOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	var updates map[string]interface{}
 	err = json.NewDecoder(r.Body).Decode(&updates)
 	if err != nil {
-		log.Println(err)
 		http.Error(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
@@ -203,8 +189,7 @@ func PatchOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "teacher not found", http.StatusNotFound)
 			return
 		}
-		log.Println(err)
-		http.Error(w, "error updating teacher", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -220,7 +205,6 @@ func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	var ids []int
 	err := json.NewDecoder(r.Body).Decode(&ids)
 	if err != nil {
-		log.Println(err)
 		http.Error(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
@@ -232,8 +216,7 @@ func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "teacher not found", http.StatusNotFound)
 			return
 		}
-		log.Println(err)
-		http.Error(w, "error deleting result", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -256,15 +239,13 @@ func DeleteOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		log.Println(err)
 		http.Error(w, "invalid teacher id", http.StatusBadRequest)
 		return
 	}
 
 	rowsEffected, err := sqlconnect.DeleteTeacherByID(id)
 	if err != nil {
-		log.Println(err)
-		http.Error(w, "error deleting result", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if rowsEffected == 0 {

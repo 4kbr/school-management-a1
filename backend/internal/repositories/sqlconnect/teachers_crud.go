@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"school-management-api/internal/models"
+	"school-management-api/pkg/utils"
 )
 
 // Sentinel error untuk kasus "teacher tidak ditemukan" — biar handler
@@ -23,7 +24,7 @@ func GetTeachers(values url.Values) ([]models.Teacher, error) {
 	// 1. Buka koneksi database
 	db, err := ConnectDb()
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "database query error")
 	}
 	// 2. Koneksi wajib ditutup setelah selesai
 	defer db.Close()
@@ -39,7 +40,7 @@ func GetTeachers(values url.Values) ([]models.Teacher, error) {
 	// 5. Jalankan query SELECT dengan argumen filter dinamis
 	rows, err := db.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "database query error")
 	}
 	// 6. Rows wajib di-close setelah dipakai — cegah kebocoran koneksi DB
 	defer rows.Close()
@@ -52,14 +53,14 @@ func GetTeachers(values url.Values) ([]models.Teacher, error) {
 		var teacher models.Teacher
 		err := rows.Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
 		if err != nil {
-			return nil, err
+			return nil, utils.ErrorHandler(err, "database query error")
 		}
 		teacherList = append(teacherList, teacher)
 	}
 
 	// 9. Cek error yang muncul SELAMA iterasi (bukan hanya saat Scan)
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "database query error")
 	}
 
 	// 10. Kembalikan hasil scan
@@ -140,7 +141,7 @@ func GetTeacherByID(id int) (*models.Teacher, error) {
 	// 1. Buka koneksi database
 	db, err := ConnectDb()
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "database query error")
 	}
 	// 2. Koneksi wajib ditutup setelah selesai
 	defer db.Close()
@@ -164,8 +165,8 @@ func GetTeacherByID(id int) (*models.Teacher, error) {
 		// 5. Id tidak ada → kembalikan sentinel biar handler bisa jawab 404
 		return nil, ErrTeacherNotFound
 	} else if err != nil {
-		// 6. Error DB lain → teruskan ke atas
-		return nil, err
+		// 6. Error DB lain → log detail & return pesan ramah
+		return nil, utils.ErrorHandler(err, "database query error")
 	}
 
 	// 7. Berhasil → kembalikan pointer ke teacher
@@ -178,7 +179,7 @@ func CreateTeachers(teachers []models.Teacher) ([]models.Teacher, error) {
 	// 1. Buka koneksi database
 	db, err := ConnectDb()
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error inserting data into database")
 	}
 	// 2. Koneksi wajib ditutup setelah selesai
 	defer db.Close()
@@ -188,7 +189,7 @@ func CreateTeachers(teachers []models.Teacher) ([]models.Teacher, error) {
 		"INSERT INTO teachers (first_name, last_name, email, class, subject) VALUES (?,?,?,?,?)",
 	)
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error inserting data into database")
 	}
 	// 4. Statement wajib di-close setelah selesai
 	defer stmt.Close()
@@ -200,13 +201,13 @@ func CreateTeachers(teachers []models.Teacher) ([]models.Teacher, error) {
 	for i, newTeacher := range teachers {
 		res, err := stmt.Exec(newTeacher.FirstName, newTeacher.LastName, newTeacher.Email, newTeacher.Class, newTeacher.Subject)
 		if err != nil {
-			return nil, err
+			return nil, utils.ErrorHandler(err, "error inserting data into database")
 		}
 
 		// 7. Ambil auto-increment ID hasil insert
 		lastId, err := res.LastInsertId()
 		if err != nil {
-			return nil, err
+			return nil, utils.ErrorHandler(err, "error inserting data into database")
 		}
 
 		// 8. Simpan ID hasil insert ke struct biar bisa dibalas ke client
@@ -223,7 +224,7 @@ func UpdateTeacher(teacher models.Teacher) error {
 	// 1. Buka koneksi database
 	db, err := ConnectDb()
 	if err != nil {
-		return err
+		return utils.ErrorHandler(err, "error updating teacher")
 	}
 	// 2. Koneksi wajib ditutup setelah selesai
 	defer db.Close()
@@ -238,8 +239,11 @@ func UpdateTeacher(teacher models.Teacher) error {
 		teacher.Subject,
 		teacher.ID,
 	)
-	// 4. Kembalikan error (nil kalau sukses)
-	return err
+	if err != nil {
+		// 4. Log detail & return pesan ramah
+		return utils.ErrorHandler(err, "error updating teacher")
+	}
+	return nil
 }
 
 // PatchTeacherByID menggabungkan get + apply + update untuk SATU teacher.
@@ -248,7 +252,7 @@ func PatchTeacherByID(id int, updates map[string]interface{}) (*models.Teacher, 
 	// 1. Buka koneksi database
 	db, err := ConnectDb()
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "unable to retrieve teacher")
 	}
 	// 2. Koneksi wajib ditutup setelah selesai
 	defer db.Close()
@@ -269,7 +273,7 @@ func PatchTeacherByID(id int, updates map[string]interface{}) (*models.Teacher, 
 	if err == sql.ErrNoRows {
 		return nil, ErrTeacherNotFound
 	} else if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "unable to retrieve teacher")
 	}
 
 	// 4. Terapkan field yang dikirim body ke struct (via reflect)
@@ -286,7 +290,7 @@ func PatchTeacherByID(id int, updates map[string]interface{}) (*models.Teacher, 
 		teacher.ID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error updating teacher")
 	}
 
 	// 6. Kembalikan teacher yang sudah ter-update
@@ -299,7 +303,7 @@ func PatchTeachers(updates []map[string]interface{}) ([]models.Teacher, error) {
 	// 1. Buka koneksi database
 	db, err := ConnectDb()
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error updating teacher")
 	}
 	// 2. Koneksi wajib ditutup setelah selesai
 	defer db.Close()
@@ -307,7 +311,7 @@ func PatchTeachers(updates []map[string]interface{}) ([]models.Teacher, error) {
 	// 3. Mulai transaksi — semua operasi dalam satu transaksi biar konsisten
 	tx, err := db.Begin()
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error starting transaction")
 	}
 	// 4. Rollback otomatis kalau ada error di tengah; no-op kalau sudah Commit
 	defer tx.Rollback()
@@ -340,7 +344,7 @@ func PatchTeachers(updates []map[string]interface{}) ([]models.Teacher, error) {
 		if err == sql.ErrNoRows {
 			return nil, ErrTeacherNotFound
 		} else if err != nil {
-			return nil, err
+			return nil, utils.ErrorHandler(err, "unable to retrieve teacher")
 		}
 
 		// 9. Terapkan field yang dikirim body ke struct (via reflect)
@@ -357,7 +361,7 @@ func PatchTeachers(updates []map[string]interface{}) ([]models.Teacher, error) {
 			teacher.ID,
 		)
 		if err != nil {
-			return nil, err
+			return nil, utils.ErrorHandler(err, "error updating teacher")
 		}
 
 		// 11. Kumpulkan teacher hasil update
@@ -366,7 +370,7 @@ func PatchTeachers(updates []map[string]interface{}) ([]models.Teacher, error) {
 
 	// 12. Semua sukses → commit (baru beneran tersimpan)
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error committing transaction")
 	}
 
 	// 13. Kembalikan list teacher yang ter-update
@@ -379,7 +383,7 @@ func DeleteTeacherByID(id int) (int64, error) {
 	// 1. Buka koneksi database
 	db, err := ConnectDb()
 	if err != nil {
-		return 0, err
+		return 0, utils.ErrorHandler(err, "error deleting result")
 	}
 	// 2. Koneksi wajib ditutup setelah selesai
 	defer db.Close()
@@ -387,13 +391,13 @@ func DeleteTeacherByID(id int) (int64, error) {
 	// 3. Eksekusi query DELETE by id
 	result, err := db.Exec("DELETE FROM teachers WHERE id = ?", id)
 	if err != nil {
-		return 0, err
+		return 0, utils.ErrorHandler(err, "error deleting result")
 	}
 
 	// 4. Ambil berapa baris yang terhapus — 0 berarti id tidak ditemukan
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return 0, err
+		return 0, utils.ErrorHandler(err, "error deleting result")
 	}
 
 	// 5. Kembalikan jumlah baris terhapus
@@ -407,7 +411,7 @@ func DeleteTeachers(ids []int) ([]int, error) {
 	// 1. Buka koneksi database
 	db, err := ConnectDb()
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error deleting result")
 	}
 	// 2. Koneksi wajib ditutup setelah selesai
 	defer db.Close()
@@ -415,7 +419,7 @@ func DeleteTeachers(ids []int) ([]int, error) {
 	// 3. Mulai transaksi — semua delete dalam satu transaksi biar konsisten
 	tx, err := db.Begin()
 	if err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error starting transaction")
 	}
 	// 4. Rollback otomatis kalau ada error di tengah; no-op kalau sudah Commit
 	defer tx.Rollback()
@@ -427,13 +431,13 @@ func DeleteTeachers(ids []int) ([]int, error) {
 	for _, id := range ids {
 		result, err := tx.Exec("DELETE FROM teachers WHERE id = ?", id)
 		if err != nil {
-			return nil, err
+			return nil, utils.ErrorHandler(err, "error deleting result")
 		}
 
 		// 7. Cek berapa baris terhapus lewat RowsAffected
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
-			return nil, err
+			return nil, utils.ErrorHandler(err, "error deleting result")
 		}
 
 		// 8. Kalau 0 baris = id gak ada di DB → error, semua di-rollback
@@ -447,7 +451,7 @@ func DeleteTeachers(ids []int) ([]int, error) {
 
 	// 10. Semua sukses → commit (baru beneran tersimpan)
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return nil, utils.ErrorHandler(err, "error committing transaction")
 	}
 
 	// 11. Kembalikan list id yang terhapus
