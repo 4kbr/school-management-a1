@@ -493,9 +493,83 @@ func applyUpdates(existingTeacher *models.Teacher, updates map[string]interface{
 	}
 }
 
-// DELETE /teachers/
+// DELETE /teachers/ — batch hapus banyak teacher dalam SATU transaksi.
+// Body: [108, 109, 110] — array id yang mau dihapus.
+// All-or-nothing: kalau satu id gak ada, SEMUA batal (rollback).
 func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	panic("not implemented yet")
+	// 1. Buka koneksi database
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "unable to connect to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	// 2. Baca body: array id
+	var ids []int
+	err = json.NewDecoder(r.Body).Decode(&ids)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// 3. Mulai transaksi — semua delete masuk satu transaksi biar konsisten
+	tx, err := db.Begin()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, "error starting transaction", http.StatusInternalServerError)
+		return
+	}
+	// Rollback otomatis kalau error di tengah; no-op kalau sudah Commit
+	defer tx.Rollback()
+
+	// 4. Loop tiap id, delete pakai tx (bukan db) biar dalam transaksi yang sama
+	deleted := make([]int, 0, len(ids))
+	for _, id := range ids {
+		result, err := tx.Exec("DELETE FROM teachers WHERE id = ?", id)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "error deleting result", http.StatusInternalServerError)
+			return
+		}
+
+		// 5. Cek berapa baris kehapus lewat RowsAffected
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "error retrieving delete result", http.StatusInternalServerError)
+			return
+		}
+		// 6. Kalau 0 baris = id gak ada di DB → 404, trx ke-rollback semua
+		if rowsAffected == 0 {
+			http.Error(w, "teacher not found", http.StatusNotFound)
+			return
+		}
+		// id yang beneran terhapus dikumpulkan buat response
+		deleted = append(deleted, id)
+	}
+
+	// 7. Semua sukses → commit (baru beneran tersimpan)
+	if err := tx.Commit(); err != nil {
+		log.Println(err)
+		http.Error(w, "error committing transaction", http.StatusInternalServerError)
+		return
+	}
+
+	// 8. Response sukses + list id yang terhapus
+	w.Header().Set("Content-Type", "application/json")
+	response := struct {
+		Status string `json:"status"`
+		Count  int    `json:"count"`
+		IDs    []int  `json:"ids"`
+	}{
+		Status: "success",
+		Count:  len(deleted),
+		IDs:    deleted,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 // DELETE /teachers/{id}
