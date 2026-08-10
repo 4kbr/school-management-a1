@@ -15,7 +15,11 @@ DB_NAME_C := $(subst ",,$(DB_NAME))
 # URL koneksi MySQL/MariaDB untuk golang-migrate, dibangun dari .env.
 MIGRATE := migrate -path migrations -database 'mysql://$(DB_USER_C):$(DB_PASSWORD_C)@tcp($(DB_HOST_C):$(DB_PORT_C))/$(DB_NAME_C)'
 
-.PHONY: dev run migrate-up migrate-down
+# docker compose dev
+DOCKER-DEV := docker compose -f docker-compose.dev.yml
+
+
+.PHONY: dev run migrate-up migrate-down dockerdev-up dockerdev-down swagger
 
 # Jalankan dengan hot-reload (air)
 dev:
@@ -32,3 +36,17 @@ migrate-up:
 # Rollback semua migrasi turun
 migrate-down:
 	$(MIGRATE) down
+
+
+# docker up
+dockerdev-up: 
+	$(DOCKER-DEV) up -d db
+
+# docker down
+dockerdev-down: 
+	$(DOCKER-DEV) down
+
+# Generate ulang dokumentasi OpenAPI/Swagger dari anotasi kode.
+# Wajib dijalankan kalau ada perubahan route/body/response biar docs sinkron.
+swagger:
+	swag init -g cmd/api/main.go -o docs

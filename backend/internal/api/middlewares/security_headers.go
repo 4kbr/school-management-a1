@@ -3,6 +3,7 @@ package middlewares
 import (
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // SecurityHeaders menambahkan header keamanan ke setiap response.
@@ -31,7 +32,19 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Strict-Transport-Security", "max-age=63072000;includeSubDomains;preload")
 
 		// Batasi sumber resource (script, img, dll) hanya dari origin sendiri.
-		w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		// Pengecualian: halaman Swagger UI (/swagger/) butuh inline style/script
+		// + aset dari CDN (unpkg/jsdelivr), jadi diberi CSP yang lebih longgar.
+		if strings.HasPrefix(r.URL.Path, "/swagger/") {
+			w.Header().Set("Content-Security-Policy",
+				"default-src 'self'; "+
+					"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; "+
+					"style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; "+
+					"img-src 'self' data:; "+
+					"font-src 'self' data: https://unpkg.com https://cdn.jsdelivr.net; "+
+					"connect-src 'self'")
+		} else {
+			w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		}
 
 		// Browser tidak mengirim header Referer saat request dari halaman kita.
 		w.Header().Set("Referrer-Policy", "no-referrer")

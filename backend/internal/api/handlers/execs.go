@@ -5,6 +5,12 @@ import (
 	"net/http"
 )
 
+// ExecsHandler godoc
+// @Summary      Execs placeholder
+// @Description  Endpoint execs (placeholder, belum diimplementasi penuh)
+// @Tags         execs
+// @Success      200 {string} string "hello execs route"
+// @Router       /execs/ [get]
 func ExecsHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:

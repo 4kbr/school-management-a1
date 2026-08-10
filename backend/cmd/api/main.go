@@ -16,6 +16,11 @@ import (
 
 // handler teacher - END
 
+// @title School Management API
+// @version 1.0
+// @description REST API untuk manajemen sekolah (teachers, dst). Dokumentasi ini di-generate otomatis dari anotasi kode oleh swag (swaggo/swag).
+// @BasePath /
+// @schemes https
 func main() {
 
 	err := godotenv.Load()

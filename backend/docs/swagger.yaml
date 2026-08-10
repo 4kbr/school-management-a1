@@ -1,0 +1,464 @@
+basePath: /
+definitions:
+  dto.CreateTeacherRequest:
+    properties:
+      class:
+        maxLength: 50
+        type: string
+      email:
+        type: string
+      first_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      last_name:
+        maxLength: 100
+        type: string
+      subject:
+        maxLength: 100
+        type: string
+    required:
+    - class
+    - email
+    - first_name
+    - last_name
+    - subject
+    type: object
+  dto.PatchTeacherRequest:
+    properties:
+      class:
+        maxLength: 50
+        type: string
+      email:
+        type: string
+      first_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      id:
+        type: integer
+      last_name:
+        maxLength: 100
+        type: string
+      subject:
+        maxLength: 100
+        type: string
+    required:
+    - id
+    type: object
+  dto.TeacherDeleteOneResponse:
+    properties:
+      id:
+        type: integer
+      status:
+        type: string
+    type: object
+  dto.TeacherDeleteResponse:
+    properties:
+      count:
+        type: integer
+      ids:
+        items:
+          type: integer
+        type: array
+      status:
+        type: string
+    type: object
+  dto.TeacherListResponse:
+    properties:
+      count:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/models.Teacher'
+        type: array
+      status:
+        type: string
+    type: object
+  dto.UpdateTeacherRequest:
+    properties:
+      class:
+        maxLength: 50
+        type: string
+      email:
+        type: string
+      first_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      last_name:
+        maxLength: 100
+        type: string
+      subject:
+        maxLength: 100
+        type: string
+    required:
+    - class
+    - email
+    - first_name
+    - last_name
+    - subject
+    type: object
+  models.Teacher:
+    properties:
+      class:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+      subject:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: REST API untuk manajemen sekolah (teachers, dst). Dokumentasi ini di-generate
+    otomatis dari anotasi kode oleh swag (swaggo/swag).
+  title: School Management API
+  version: "1.0"
+paths:
+  /:
+    get:
+      description: Pesan selamat datang di API
+      responses:
+        "200":
+          description: hello root route
+          schema:
+            type: string
+      summary: Root endpoint
+      tags:
+      - root
+  /execs/:
+    get:
+      description: Endpoint execs (placeholder, belum diimplementasi penuh)
+      responses:
+        "200":
+          description: hello execs route
+          schema:
+            type: string
+      summary: Execs placeholder
+      tags:
+      - execs
+  /students/:
+    get:
+      description: Endpoint students (placeholder, belum diimplementasi penuh)
+      responses:
+        "200":
+          description: hello students route
+          schema:
+            type: string
+      summary: Students placeholder
+      tags:
+      - students
+  /teachers:
+    delete:
+      consumes:
+      - application/json
+      description: Hapus banyak teacher dalam satu transaksi. All-or-nothing.
+      parameters:
+      - description: Array of teacher IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            type: integer
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TeacherDeleteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete teachers (batch)
+      tags:
+      - teachers
+    get:
+      description: Mengambil daftar teacher dengan filter & sorting opsional
+      parameters:
+      - description: Filter by first name
+        in: query
+        name: first_name
+        type: string
+      - description: Filter by last name
+        in: query
+        name: last_name
+        type: string
+      - description: Filter by email
+        in: query
+        name: email
+        type: string
+      - description: Filter by class
+        in: query
+        name: class
+        type: string
+      - description: Filter by subject
+        in: query
+        name: subject
+        type: string
+      - collectionFormat: csv
+        description: 'Sort: field:asc|desc (repeatable, ex: first_name:asc)'
+        in: query
+        items:
+          type: string
+        name: sortby
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TeacherListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List teachers
+      tags:
+      - teachers
+    patch:
+      consumes:
+      - application/json
+      description: Update sebagian field dari banyak teacher dalam satu transaksi.
+        All-or-nothing.
+      parameters:
+      - description: Array of partial updates
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/dto.PatchTeacherRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TeacherListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Patch teachers (batch)
+      tags:
+      - teachers
+    post:
+      consumes:
+      - application/json
+      description: Membuat satu atau lebih teacher sekaligus
+      parameters:
+      - description: Array of teachers
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/dto.CreateTeacherRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.TeacherListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create teachers (batch)
+      tags:
+      - teachers
+  /teachers/{id}:
+    delete:
+      description: Hapus satu teacher berdasarkan id
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TeacherDeleteOneResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete a teacher
+      tags:
+      - teachers
+    get:
+      description: Mengambil satu teacher berdasarkan id
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Teacher'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get a teacher by ID
+      tags:
+      - teachers
+    patch:
+      consumes:
+      - application/json
+      description: Update sebagian field satu teacher berdasarkan id
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Partial fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PatchTeacherRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Teacher'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Patch a teacher
+      tags:
+      - teachers
+    put:
+      consumes:
+      - application/json
+      description: Mengganti seluruh data teacher berdasarkan id
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Full teacher data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateTeacherRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Teacher'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update a teacher (full replace)
+      tags:
+      - teachers
+schemes:
+- https
+swagger: "2.0"

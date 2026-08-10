@@ -2,7 +2,11 @@ package router
 
 import (
 	"net/http"
+
+	_ "school-management-api/docs"
 	"school-management-api/internal/api/handlers"
+
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 func Router() *http.ServeMux {
@@ -12,6 +16,10 @@ func Router() *http.ServeMux {
 	//       biar gak perlu switch r.Method manual di dalam handler
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handlers.RootHandler)
+
+	// Swagger UI (dokumentasi OpenAPI). Akses: /swagger/index.html
+	// docs/ harus di-generate dulu via `make swagger` (swag init).
+	mux.Handle("GET /swagger/", httpSwagger.WrapHandler)
 
 	mux.HandleFunc("GET /teachers", handlers.GetTeachersHandler)
 	mux.HandleFunc("POST /teachers", handlers.AddTeacherHandler)

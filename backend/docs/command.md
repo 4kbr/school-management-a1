@@ -128,3 +128,79 @@ Kredensial & DB awal sudah otomatis dibuat oleh compose di port `3306`.
 ```bash
 go get github.com/go-sql-driver/mysql
 ```
+
+## Swagger / OpenAPI — cara menambah dokumentasi route baru
+
+Dokumentasi di-generate otomatis dari anotasi comment di handler (pakai `swaggo/swag`). Jadi kalau menambah route baru, ikuti langkah ini.
+
+### 1. Tambah anotasi di handler
+
+Tulis comment `godoc` + anotasi `swag` **tepat di atas** function handler. Contoh pola dasar:
+
+```go
+// GetFooHandler godoc
+// @Summary      Ringkasan singkat
+// @Description  Penjelasan lebih panjang
+// @Tags         teachers
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int                     true  "ID"
+// @Param        body  body  dto.CreateTeacherRequest true "Request body"
+// @Success      200   {object}  dto.TeacherListResponse
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      500   {object}  map[string]interface{}
+// @Router       /teachers/{id} [get]
+func GetFooHandler(w http.ResponseWriter, r *http.Request) { ... }
+```
+
+Yang wajib:
+- `@Summary`, `@Tags`, `@Router` — biar muncul di UI.
+- `@Param` — untuk query/path/body/header parameter.
+- `@Success`/`@Failure` — status code + tipe respons.
+- `@Router` format: `path [method]`, method pakai lowercase (`get`, `post`, `put`, `patch`, `delete`).
+
+Tipe `{object}` yang dipakai harus **bernama** (bukan anonymous struct) biar tergenerate rapi — makanya kita punya DTO di `internal/models/dto/` dan model di `internal/models/`.
+
+### 2. Daftarkan route di `internal/api/router/router.go`
+
+```go
+mux.HandleFunc("GET /foo", handlers.GetFooHandler)
+```
+
+### 3. Generate ulang dokumentasi
+
+```bash
+# dari folder backend
+make swagger
+# atau manual
+swag init -g cmd/api/main.go -o docs
+```
+
+Ini men-generate `docs/docs.go`, `docs/swagger.json`, `docs/swagger.yaml`.
+
+### 4. Build & cek
+
+```bash
+go build ./...
+```
+
+Lalu jalankan server dan buka UI:
+
+```bash
+air
+# buka https://localhost:3000/swagger/index.html
+```
+
+Cek route baru muncul di spec:
+```bash
+curl -sk https://localhost:3000/swagger/doc.json
+```
+
+### Catatan penting
+
+- **`docs/` wajib di-generate sebelum build** — `router.go` meng-import `_ "school-management-api/docs"`, jadi kalau `docs/docs.go` belum ada, build gagal. Selalu `make swagger` setelah menambah/mengubah route.
+- **Folder `docs/` di-commit** ke git (bukan di-ignore) supaya clone baru langsung bisa build.
+- Setiap kali mengubah route/body/response, jalankan `make swagger` biar spec sinkron dengan kode.
+- Akses UI lewat **HTTPS** karena server pakai `ListenAndServeTLS`.
+- Anotasi `swag` untuk referensi lengkap: https://github.com/swaggo/swag
+

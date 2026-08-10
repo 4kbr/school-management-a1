@@ -166,3 +166,27 @@ Kalau client mengirim tipe yang salah (mis. `class` diisi angka padahal field `s
 - `toSnake("ID")` diperbaiki jadi `"id"` (bukan `"i_d"`) — underscore hanya ditambah sebelum huruf besar yang didahului huruf kecil (mengenali akronim).
 - Single PATCH: `req.ID` di-set dari URL path (bukan body), karena DTO shared memakai `required` pada `ID`.
 - Repo `PatchTeachers` membaca `update["id"].(int)` (nilai dari DTO), bukan `.(float64)` (nilai dari JSON decode).
+
+---
+
+## ADR-009: Dokumentasi OpenAPI + Swagger UI (`swaggo/swag`)
+
+- **Status:** Accepted
+- **Tanggal:** 2026-08-10
+
+### Context
+Ganti Postman manual (mis. saat pindah device) butuh dokumentasi API yang self-contained dan interaktif. Dipilih `swaggo/swag` karena itu standar de-facto & common use di Go: spec OpenAPI di-generate otomatis dari anotasi kode (tidak perlu nulis YAML manual yang gampang tidak sinkron).
+
+### Decision
+- Tambahkan dependency: `github.com/swaggo/swag`, `github.com/swaggo/http-swagger/v2`, `github.com/swaggo/files/v2`, plus CLI `swag` (untuk regen).
+- Info global API ditaruh di `cmd/api/main.go` via anotasi `@title`, `@version`, `@description`, `@BasePath /`, `@schemes https`.
+- Setiap handler (8 endpoint teachers + stubs root/students/execs) diberi anotasi `@Summary/@Tags/@Param/@Success/@Router` dsb.
+- Tambah response DTO bernama (`dto.TeacherListResponse`, `TeacherDeleteResponse`, `TeacherDeleteOneResponse`) biar skema respons terdokumentasi rapi.
+- Route Swagger UI diregister di `router.go`: `mux.Handle("GET /swagger/", httpSwagger.WrapHandler)` + `import _ "school-management-api/docs"`.
+- Generate spec via `swag init -g cmd/api/main.go -o docs` → `docs/docs.go`, `docs/swagger.json`, `docs/swagger.yaml`. Ditambah target `make swagger`.
+
+### Consequences
+- UI interaktif di `https://localhost:3000/swagger/index.html` — bisa "Try it out" langsung.
+- `router.go` meng-import `_ "school-management-api/docs"`, jadi **`docs/` wajib di-generate (`make swagger`) sebelum build**. Folder `docs/` di-commit supaya clone baru langsung bisa build.
+- Setiap perubahan route/body/response harus diikuti `make swagger` biar spec tetap sinkron.
+- Akses lewat HTTPS karena server memakai `ListenAndServeTLS`.

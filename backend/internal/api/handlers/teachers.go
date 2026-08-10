@@ -13,7 +13,20 @@ import (
 
 // handler teacher
 
-// GET /teachers/
+// GetTeachersHandler godoc
+// @Summary      List teachers
+// @Description  Mengambil daftar teacher dengan filter & sorting opsional
+// @Tags         teachers
+// @Produce      json
+// @Param        first_name  query string false "Filter by first name"
+// @Param        last_name   query string false "Filter by last name"
+// @Param        email       query string false "Filter by email"
+// @Param        class       query string false "Filter by class"
+// @Param        subject     query string false "Filter by subject"
+// @Param        sortby      query []string false "Sort: field:asc|desc (repeatable, ex: first_name:asc)"
+// @Success      200 {object} dto.TeacherListResponse
+// @Failure      500 {object} map[string]interface{}
+// @Router       /teachers [get]
 func GetTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// seluruh proses (build query filter/sort + connect + query + scan) di repository
 	teacherList, err := sqlconnect.GetTeachers(r.URL.Query())
@@ -36,7 +49,17 @@ func GetTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// GET /teachers/{id}
+// GetOneTeacherByIdHandler godoc
+// @Summary      Get a teacher by ID
+// @Description  Mengambil satu teacher berdasarkan id
+// @Tags         teachers
+// @Produce      json
+// @Param        id   path      int  true  "Teacher ID"
+// @Success      200  {object}  models.Teacher
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /teachers/{id} [get]
 func GetOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 
@@ -62,7 +85,17 @@ func GetOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(teacher)
 }
 
-// POST /teachers/
+// AddTeacherHandler godoc
+// @Summary      Create teachers (batch)
+// @Description  Membuat satu atau lebih teacher sekaligus
+// @Tags         teachers
+// @Accept       json
+// @Produce      json
+// @Param        body  body      []dto.CreateTeacherRequest  true  "Array of teachers"
+// @Success      201   {object}  dto.TeacherListResponse
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      500   {object}  map[string]interface{}
+// @Router       /teachers [post]
 func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Decode body ke slice request DTO (deteksi juga tipe mismatch)
 	var reqs []dto.CreateTeacherRequest
@@ -103,7 +136,19 @@ func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// PUT /teachers/{id}
+// UpdateOneTeacherByIdHandler godoc
+// @Summary      Update a teacher (full replace)
+// @Description  Mengganti seluruh data teacher berdasarkan id
+// @Tags         teachers
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int                      true  "Teacher ID"
+// @Param        body  body  dto.UpdateTeacherRequest true  "Full teacher data"
+// @Success      200   {object}  models.Teacher
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      404   {object}  map[string]interface{}
+// @Failure      500   {object}  map[string]interface{}
+// @Router       /teachers/{id} [put]
 func UpdateOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -151,9 +196,18 @@ func UpdateOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updatedTeacher)
 }
 
-// PATCH /teachers/ — batch update banyak teacher dalam SATU transaksi.
-// Body: [{"id":100,"first_name":"X"}, {"id":104,"class":"9-Z"}, ...]
-// Kalau salah satu gagal, SEMUA di-rollback (all-or-nothing).
+// PatchTeachersHandler godoc
+// @Summary      Patch teachers (batch)
+// @Description  Update sebagian field dari banyak teacher dalam satu transaksi. All-or-nothing.
+// @Tags         teachers
+// @Accept       json
+// @Produce      json
+// @Param        body  body  []dto.PatchTeacherRequest  true  "Array of partial updates"
+// @Success      200   {object}  dto.TeacherListResponse
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      404   {object}  map[string]interface{}
+// @Failure      500   {object}  map[string]interface{}
+// @Router       /teachers [patch]
 func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Decode body ke slice request DTO (deteksi juga tipe mismatch)
 	var reqs []dto.PatchTeacherRequest
@@ -201,7 +255,19 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// PATCH /teachers/{id}
+// PatchOneTeacherByIdHandler godoc
+// @Summary      Patch a teacher
+// @Description  Update sebagian field satu teacher berdasarkan id
+// @Tags         teachers
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int                     true  "Teacher ID"
+// @Param        body  body  dto.PatchTeacherRequest true  "Partial fields to update"
+// @Success      200   {object}  models.Teacher
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      404   {object}  map[string]interface{}
+// @Failure      500   {object}  map[string]interface{}
+// @Router       /teachers/{id} [patch]
 func PatchOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
@@ -244,9 +310,18 @@ func PatchOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(teacher)
 }
 
-// DELETE /teachers/ — batch hapus banyak teacher dalam SATU transaksi.
-// Body: [108, 109, 110] — array id yang mau dihapus.
-// All-or-nothing: kalau satu id gak ada, SEMUA batal (rollback).
+// DeleteTeachersHandler godoc
+// @Summary      Delete teachers (batch)
+// @Description  Hapus banyak teacher dalam satu transaksi. All-or-nothing.
+// @Tags         teachers
+// @Accept       json
+// @Produce      json
+// @Param        body  body  []int  true  "Array of teacher IDs"
+// @Success      200   {object}  dto.TeacherDeleteResponse
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      404   {object}  map[string]interface{}
+// @Failure      500   {object}  map[string]interface{}
+// @Router       /teachers [delete]
 func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// baca body: array id
 	var ids []int
@@ -281,7 +356,17 @@ func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// DELETE /teachers/{id}
+// DeleteOneTeacherByIdHandler godoc
+// @Summary      Delete a teacher
+// @Description  Hapus satu teacher berdasarkan id
+// @Tags         teachers
+// @Produce      json
+// @Param        id  path  int  true  "Teacher ID"
+// @Success      200  {object}  dto.TeacherDeleteOneResponse
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /teachers/{id} [delete]
 func DeleteOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)

@@ -5,6 +5,12 @@ import (
 	"net/http"
 )
 
+// StudentsHandler godoc
+// @Summary      Students placeholder
+// @Description  Endpoint students (placeholder, belum diimplementasi penuh)
+// @Tags         students
+// @Success      200 {string} string "hello students route"
+// @Router       /students/ [get]
 func StudentsHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
