@@ -33,3 +33,12 @@ type PatchTeacherRequest struct {
 	Class     *string `json:"class" validate:"omitempty,max=50"`
 	Subject   *string `json:"subject" validate:"omitempty,max=100"`
 }
+
+// TeacherStudentsRequest dipakai di GET /teachers/{id}/students.
+// Menampung query param untuk filter & sort daftar student milik teacher tsb.
+type TeacherStudentsRequest struct {
+	FirstName string   `json:"first_name" validate:"omitempty,max=100"`
+	LastName  string   `json:"last_name" validate:"omitempty,max=100"`
+	Email     string   `json:"email" validate:"omitempty,email"`
+	SortBy    []string `json:"sortby"`
+}
