@@ -19,7 +19,7 @@ MIGRATE := migrate -path migrations -database 'mysql://$(DB_USER_C):$(DB_PASSWOR
 DOCKER-DEV := docker compose -f docker-compose.dev.yml
 
 
-.PHONY: dev run migrate-up migrate-down dockerdev-up dockerdev-down swagger
+.PHONY: dev run migrate-up migrate-down migrate-version dockerdev-up dockerdev-down swagger
 
 # Jalankan dengan hot-reload (air)
 dev:
@@ -36,6 +36,10 @@ migrate-up:
 # Rollback semua migrasi turun
 migrate-down:
 	$(MIGRATE) down
+
+# Version migration
+migrate-version:
+	$(MIGRATE) version
 
 
 # docker up
