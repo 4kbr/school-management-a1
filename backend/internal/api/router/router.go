@@ -31,7 +31,16 @@ func Router() *http.ServeMux {
 	mux.HandleFunc("PATCH /teachers/{id}", handlers.PatchOneTeacherByIdHandler)
 	mux.HandleFunc("DELETE /teachers/{id}", handlers.DeleteOneTeacherByIdHandler)
 
-	mux.HandleFunc("/students/", handlers.StudentsHandler)
+	mux.HandleFunc("GET /students", handlers.GetStudentsHandler)
+	mux.HandleFunc("POST /students", handlers.AddStudentHandler)
+	mux.HandleFunc("PATCH /students", handlers.PatchStudentsHandler)
+	mux.HandleFunc("DELETE /students", handlers.DeleteStudentsHandler)
+
+	mux.HandleFunc("GET /students/{id}", handlers.GetOneStudentByIdHandler)
+	mux.HandleFunc("PUT /students/{id}", handlers.UpdateOneStudentByIdHandler)
+	mux.HandleFunc("PATCH /students/{id}", handlers.PatchOneStudentByIdHandler)
+	mux.HandleFunc("DELETE /students/{id}", handlers.DeleteOneStudentByIdHandler)
+
 	mux.HandleFunc("/execs/", handlers.ExecsHandler)
 
 	return mux

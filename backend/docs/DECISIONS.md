@@ -190,3 +190,25 @@ Ganti Postman manual (mis. saat pindah device) butuh dokumentasi API yang self-c
 - `router.go` meng-import `_ "school-management-api/docs"`, jadi **`docs/` wajib di-generate (`make swagger`) sebelum build**. Folder `docs/` di-commit supaya clone baru langsung bisa build.
 - Setiap perubahan route/body/response harus diikuti `make swagger` biar spec tetap sinkron.
 - Akses lewat HTTPS karena server memakai `ListenAndServeTLS`.
+
+---
+
+## ADR-010: CRUD students — pola duplikasi + validasi FK `class`
+
+- **Status:** Accepted
+- **Tanggal:** 2026-08-11
+
+### Context
+Endpoint `students` awalnya placeholder (method-switch manual di `/students/`). Tabel `students` punya `FOREIGN KEY (class) REFERENCES teachers(class)` — beda dari tabel `teachers`. Helper repo (`generateInsertQuery`, `getStructValues`, `applyUpdates`, `addFilters`, `addSorting`) hardcoded untuk `models.Teacher`.
+
+### Decision
+- Implementasikan 8 endpoint students (`GET/POST/PATCH/DELETE /students` + `GET/PUT/PATCH/DELETE /students/{id}`) dengan **metode-routing Go 1.22**, pola yang sama persis dengan teachers (repo + DTO + handler).
+- **Duplikasi** helper repo untuk students (`students_crud.go`) alih-alih menggeneralisasi helper yang ada — konsisten dengan gaya kode, explicit, dan sesuai prinsip YAGNI (menghindari abstraksi premature).
+- DTO students terpisah: `CreateStudentRequest`, `UpdateStudentRequest`, `PatchStudentRequest`, plus `StudentListResponse`, `StudentDeleteResponse`, `StudentDeleteOneResponse`.
+- Tambah tag `db` di `models.Student` (dipakai helper `generateStudentInsertQuery`/`getStudentStructValues`).
+- **Validasi FK**: sebelum insert/update/patch, `class` dicek ada di tabel `teachers` lewat helper `classExists`/`classExistsTx`. Kalau tidak ada → sentinel `ErrClassNotFound` → handler balas `400 "class not found"` (bukan error FK mentah/500).
+
+### Consequences
+- CRUD students lengkap & konsisten dengan teachers, mudah dibandingkan.
+- Ada duplikasi kecil antar `teachers_crud.go` dan `students_crud.go` (terima sebagai trade-off agar tetap explicit & tanpa abstraksi). Jika nanti muncul entitas ketiga yang serupa, saat itulah generalisasi helper masuk akal.
+- Error `class` tidak ada jadi bersih (400) dan mencegah data student dengan class yang tidak valid.
