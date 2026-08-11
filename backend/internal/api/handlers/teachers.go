@@ -85,6 +85,111 @@ func GetOneTeacherByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(teacher)
 }
 
+// GetTeacherStudentsHandler godoc
+// @Summary      Get students of a teacher
+// @Description  Mengambil daftar student di class milik teacher {id}, dengan filter & sorting opsional
+// @Tags         teachers
+// @Produce      json
+// @Param        id          path      int      true   "Teacher ID"
+// @Param        first_name  query     string   false  "Filter by first name"
+// @Param        last_name   query     string   false  "Filter by last name"
+// @Param        email       query     string   false  "Filter by email"
+// @Param        sortby      query     []string false  "Sort: field:asc|desc (repeatable, ex: first_name:asc)"
+// @Success      200 {object} dto.TeacherStudentsResponse
+// @Failure      400 {object} map[string]interface{}
+// @Failure      404 {object} map[string]interface{}
+// @Failure      500 {object} map[string]interface{}
+// @Router       /teachers/{id}/students [get]
+func GetTeacherStudentsHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// handle path parameter
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid teacher id", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Ambil teacher dulu (404 kalau tidak ada) — dari situ dapat class
+	teacher, err := sqlconnect.GetTeacherByID(id)
+	if errors.Is(err, sqlconnect.ErrTeacherNotFound) {
+		http.Error(w, "teacher not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Ambil student di class milik teacher tsb (dengan filter & sort)
+	students, err := sqlconnect.GetStudentsByClass(teacher.Class, r.URL.Query())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Balas response dengan DTO TeacherStudentsResponse
+	response := dto.TeacherStudentsResponse{
+		Status:    "success",
+		TeacherID: teacher.ID,
+		Class:     teacher.Class,
+		Count:     len(students),
+		Data:      students,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetTeacherStudentCountHandler godoc
+// @Summary      Count students of a teacher
+// @Description  Menghitung jumlah student di class milik teacher {id}
+// @Tags         teachers
+// @Produce      json
+// @Param        id  path  int  true  "Teacher ID"
+// @Success      200  {object}  dto.TeacherStudentCountResponse
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /teachers/{id}/studentcount [get]
+func GetTeacherStudentCountHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// handle path parameter
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid teacher id", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Ambil teacher dulu (404 kalau tidak ada) — dari situ dapat class
+	teacher, err := sqlconnect.GetTeacherByID(id)
+	if errors.Is(err, sqlconnect.ErrTeacherNotFound) {
+		http.Error(w, "teacher not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Hitung jumlah student di class milik teacher tsb
+	count, err := sqlconnect.CountStudentsByClass(teacher.Class)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Balas response dengan DTO TeacherStudentCountResponse
+	response := dto.TeacherStudentCountResponse{
+		Status:    "success",
+		TeacherID: teacher.ID,
+		Class:     teacher.Class,
+		Count:     count,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
 // AddTeacherHandler godoc
 // @Summary      Create teachers (batch)
 // @Description  Membuat satu atau lebih teacher sekaligus

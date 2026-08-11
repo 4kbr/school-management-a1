@@ -143,6 +143,32 @@ definitions:
       status:
         type: string
     type: object
+  dto.TeacherStudentCountResponse:
+    properties:
+      class:
+        type: string
+      count:
+        type: integer
+      status:
+        type: string
+      teacher_id:
+        type: integer
+    type: object
+  dto.TeacherStudentsResponse:
+    properties:
+      class:
+        type: string
+      count:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/models.Student'
+        type: array
+      status:
+        type: string
+      teacher_id:
+        type: integer
+    type: object
   dto.UpdateStudentRequest:
     properties:
       class:
@@ -851,6 +877,94 @@ paths:
             additionalProperties: true
             type: object
       summary: Update a teacher (full replace)
+      tags:
+      - teachers
+  /teachers/{id}/studentcount:
+    get:
+      description: Menghitung jumlah student di class milik teacher {id}
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TeacherStudentCountResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Count students of a teacher
+      tags:
+      - teachers
+  /teachers/{id}/students:
+    get:
+      description: Mengambil daftar student di class milik teacher {id}, dengan filter
+        & sorting opsional
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Filter by first name
+        in: query
+        name: first_name
+        type: string
+      - description: Filter by last name
+        in: query
+        name: last_name
+        type: string
+      - description: Filter by email
+        in: query
+        name: email
+        type: string
+      - collectionFormat: csv
+        description: 'Sort: field:asc|desc (repeatable, ex: first_name:asc)'
+        in: query
+        items:
+          type: string
+        name: sortby
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TeacherStudentsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get students of a teacher
       tags:
       - teachers
 schemes:

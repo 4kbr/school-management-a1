@@ -33,7 +33,7 @@ type TeacherStudentsResponse struct {
 	Data      []models.Student `json:"data"`
 }
 
-// TeacherStudentCountResponse adalah respons GET /teachers/{id}/students/count
+// TeacherStudentCountResponse adalah respons GET /teachers/{id}/studentcount
 // (jumlah student di class milik teacher tersebut).
 type TeacherStudentCountResponse struct {
 	Status    string `json:"status"`

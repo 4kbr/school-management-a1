@@ -553,6 +553,82 @@ func DeleteStudents(ids []int) ([]int, error) {
 	return deleted, nil
 }
 
+// GetStudentsByClass mengambil daftar student di class tertentu (class milik
+// teacher {id}), dengan filter & sorting dari query params seperti GetStudents.
+func GetStudentsByClass(class string, values url.Values) ([]models.Student, error) {
+	// 1. Buka koneksi database
+	db, err := ConnectDb()
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "database query error")
+	}
+	// 2. Koneksi wajib ditutup setelah selesai
+	defer db.Close()
+
+	// 3. Bangun query dasar dengan kondisi class, lalu terapkan filter query params
+	query := "SELECT id, first_name, last_name, email, class FROM students WHERE class = ?"
+	args := []interface{}{class}
+	query, args = addStudentFilters(values, query, args)
+
+	// 4. Terapkan sorting dari query params (mis. "?sortby=first_name:asc")
+	query = addStudentSorting(values, query)
+
+	// 5. Jalankan query SELECT dengan argumen filter dinamis
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "database query error")
+	}
+	// 6. Rows wajib di-close setelah dipakai — cegah kebocoran koneksi DB
+	defer rows.Close()
+
+	// 7. Siapkan slice hasil (bukan nil) biar JSON keluar sebagai [] bukan null
+	studentList := make([]models.Student, 0)
+
+	// 8. Loop tiap baris, scan ke struct Student, lalu append
+	for rows.Next() {
+		var student models.Student
+		err := rows.Scan(&student.ID, &student.FirstName, &student.LastName, &student.Email, &student.Class)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "database query error")
+		}
+		studentList = append(studentList, student)
+	}
+
+	// 9. Cek error yang muncul SELAMA iterasi (bukan hanya saat Scan)
+	if err := rows.Err(); err != nil {
+		return nil, utils.ErrorHandler(err, "database query error")
+	}
+
+	// 10. Kembalikan hasil scan
+	return studentList, nil
+}
+
+// CountStudentsByClass menghitung jumlah student di class tertentu
+// (class milik teacher {id}).
+func CountStudentsByClass(class string) (int, error) {
+	// 1. Buka koneksi database
+	db, err := ConnectDb()
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "database query error")
+	}
+	// 2. Koneksi wajib ditutup setelah selesai
+	defer db.Close()
+
+	// 3. Siapkan variabel penampung hasil COUNT
+	var count int
+
+	// 4. Jalankan query COUNT dengan kondisi class
+	err = db.QueryRow(
+		"SELECT COUNT(*) FROM students WHERE class = ?",
+		class,
+	).Scan(&count)
+	if err != nil {
+		return 0, utils.ErrorHandler(err, "database query error")
+	}
+
+	// 5. Kembalikan jumlah student
+	return count, nil
+}
+
 // applyStudentUpdates mengubah field struct models.Student sesuai map updates (via reflect).
 // - Cocokkan key body ke json tag field struct
 // - Skip "id" biar user gak bisa ubah ID

@@ -571,3 +571,56 @@ func applyUpdates(existingTeacher *models.Teacher, updates map[string]interface{
 		}
 	}
 }
+
+// GetTeachersStudents membangun query SELECT dengan filter & sorting dari query params,
+// menjalankannya, untuk mencari list dari students yang memiliki class yang sama
+// dengan class nya teachers yang punya id tersebut lalu memindai semua baris ke slice models.Student.
+func GetTeachersStudents(teacher_id string, values url.Values) ([]models.Student, error) {
+	// 1. Buka koneksi database
+	db, err := ConnectDb()
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "database query error")
+	}
+	// 2. Koneksi wajib ditutup setelah selesai
+	defer db.Close()
+
+	// 3. Bangun query dasar + terapkan filter dari query params
+	query := "SELECT id, first_name, last_name, email, class FROM students WHERE class = (SELECT class FROM teachers WHERE id = ?)"
+
+	// TODO: nanti tambahkan function filter dan sorting
+	// var args []interface{}
+	// query, args = addFilters(values, query, args)
+
+	// // 4. Terapkan sorting dari query params (mis. "?sortby=first_name:asc")
+	// query = addSorting(values, query)
+
+	// 5. Jalankan query SELECT dengan argumen filter dinamis
+	// rows, err := db.Query(query, args...)
+	rows, err := db.Query(query, teacher_id)
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "database query error")
+	}
+	// 6. Rows wajib di-close setelah dipakai — cegah kebocoran koneksi DB
+	defer rows.Close()
+
+	// 7. Siapkan slice hasil (bukan nil) biar JSON keluar sebagai [] bukan null
+	studentList := make([]models.Student, 0)
+
+	// 8. Loop tiap baris, scan ke struct Teacher, lalu append
+	for rows.Next() {
+		var student models.Student
+		err := rows.Scan(&student.ID, &student.FirstName, &student.LastName, &student.Email, &student.Class)
+		if err != nil {
+			return nil, utils.ErrorHandler(err, "database query error")
+		}
+		studentList = append(studentList, student)
+	}
+
+	// 9. Cek error yang muncul SELAMA iterasi (bukan hanya saat Scan)
+	if err := rows.Err(); err != nil {
+		return nil, utils.ErrorHandler(err, "database query error")
+	}
+
+	// 10. Kembalikan hasil scan
+	return studentList, nil
+}
