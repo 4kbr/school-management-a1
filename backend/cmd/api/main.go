@@ -74,7 +74,7 @@ func main() {
 	// 	mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTime, rl.Middleware, mw.Cors,
 	// )
 
-	router := router.Router()
+	router := router.MainRouter()
 	secureMux := utils.ApplyMiddlewares(router, mw.SecurityHeaders)
 	// create custom server
 	server := &http.Server{
