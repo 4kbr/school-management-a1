@@ -19,7 +19,7 @@ MIGRATE := migrate -path migrations -database 'mysql://$(DB_USER_C):$(DB_PASSWOR
 DOCKER-DEV := docker compose -f docker-compose.dev.yml
 
 
-.PHONY: dev run migrate-up migrate-down migrate-version dockerdev-up dockerdev-down swagger
+.PHONY: dev run migrate-up migrate-down migrate-version migrate-new migrate-force dockerdev-up dockerdev-down swagger
 
 # Jalankan dengan hot-reload (air)
 dev:
@@ -40,6 +40,17 @@ migrate-down:
 # Version migration
 migrate-version:
 	$(MIGRATE) version
+
+# Buat pasangan file migrasi baru (00000N_<name>.up.sql + .down.sql)
+# Pemakaian: make migrate-new name=create_execs
+migrate-new:
+	migrate create -ext sql -dir migrations -seq $(name)
+
+# Force version (set version tanpa menjalankan migrasi) — untuk bersihkan
+# status "dirty database" akibat migrasi yang gagal di tengah.
+# Pemakaian: make migrate-force version=2  (set ke version sebelum yang gagal)
+migrate-force:
+	$(MIGRATE) force $(version)
 
 
 # docker up
