@@ -24,9 +24,7 @@ func MainRouter() *http.ServeMux {
 
 	registerTeacherRoutes(mux)
 	registerStudentRoutes(mux)
-
-	// TODO: nanti execs dikerjakan
-	// registerExecRoutes(mux)
+	registerExecRoutes(mux)
 
 	return mux
 }
