@@ -184,6 +184,33 @@ func GetExecByID(id int) (*models.Exec, error) {
 	return exec, nil
 }
 
+// GetExecByEmail mengambil SATU exec berdasarkan email (dipakai login).
+// Mengembalikan ErrExecNotFound kalau email tidak ditemukan.
+// Password (hash) ikut di-SELECT supaya handler bisa verifikasi password.
+func GetExecByEmail(email string) (*models.Exec, error) {
+	// 1. Buka koneksi database
+	db, err := ConnectDb()
+	if err != nil {
+		return nil, utils.ErrorHandler(err, "database query error")
+	}
+	// 2. Koneksi wajib ditutup setelah selesai
+	defer db.Close()
+
+	// 3. Jalankan SELECT by email lalu scan ke struct Exec
+	row := db.QueryRow("SELECT "+execSelectCols+" FROM execs WHERE email = ?", email)
+	exec, err := scanExec(row)
+	if err == sql.ErrNoRows {
+		// 4. Email tidak ada → kembalikan sentinel biar handler bisa jawab 404
+		return nil, ErrExecNotFound
+	} else if err != nil {
+		// 5. Error DB lain → log detail & return pesan ramah
+		return nil, utils.ErrorHandler(err, "database query error")
+	}
+
+	// 6. Berhasil → kembalikan pointer ke exec
+	return exec, nil
+}
+
 // CreateExec memasukkan SATU exec baru.
 // Query ditulis manual: field yang diisi client (first_name, last_name, email,
 // username, password, inactive_status, role). Field server-managed dibiarkan

@@ -109,6 +109,34 @@ definitions:
       username:
         type: string
     type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.LoginResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.ExecResponse'
+      message:
+        type: string
+      status:
+        type: string
+      token:
+        type: string
+    type: object
+  dto.LogoutResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
+    type: object
   dto.PatchExecRequest:
     properties:
       email:
@@ -573,6 +601,69 @@ paths:
       summary: Patch an exec
       tags:
       - execs
+  /execs/login:
+    post:
+      consumes:
+      - application/json
+      description: Autentikasi exec via email & password. Password diverifikasi dengan
+        Argon2id. Sukses → token JWT dikirim di cookie sekaligus di JSON payload.
+        Akun dengan inactive_status=true ditolak.
+      parameters:
+      - description: Email & password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Login an exec
+      tags:
+      - auth
+  /execs/logout:
+    post:
+      description: Menghapus cookie autentikasi sehingga token di client tidak berlaku
+        lagi.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LogoutResponse'
+      summary: Logout an exec
+      tags:
+      - auth
   /students:
     delete:
       consumes:

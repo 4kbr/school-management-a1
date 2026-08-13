@@ -199,6 +199,95 @@
                 }
             }
         },
+        "/execs/login": {
+            "post": {
+                "description": "Autentikasi exec via email \u0026 password. Password diverifikasi dengan Argon2id. Sukses → token JWT dikirim di cookie sekaligus di JSON payload. Akun dengan inactive_status=true ditolak.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login an exec",
+                "parameters": [
+                    {
+                        "description": "Email \u0026 password",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/execs/logout": {
+            "post": {
+                "description": "Menghapus cookie autentikasi sehingga token di client tidak berlaku lagi.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Logout an exec",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.LogoutResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/execs/{id}": {
             "get": {
                 "description": "Mengambil satu exec berdasarkan id",
@@ -1525,6 +1614,49 @@
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.ExecResponse"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LogoutResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
