@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	mw "school-management-api/internal/api/middlewares"
 	"school-management-api/internal/api/handlers"
 )
 
@@ -13,7 +14,8 @@ func registerExecRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /execs", handlers.AddExecsHandler)
 	mux.HandleFunc("PATCH /execs", handlers.PatchExecsHandler)
 
-	mux.HandleFunc("GET /execs/{id}", handlers.GetOneExecHandler)
+	// Contoh route yang diproteksi JWTMiddleware: butuh token valid (cookie/Bearer)
+	mux.Handle("GET /execs/{id}", mw.JWTMiddleware(http.HandlerFunc(handlers.GetOneExecHandler)))
 	mux.HandleFunc("PATCH /execs/{id}", handlers.PatchOneExecHandler)
 	mux.HandleFunc("DELETE /execs/{id}", handlers.DeleteOneExecHandler)
 

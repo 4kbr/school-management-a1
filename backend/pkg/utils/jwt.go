@@ -1,12 +1,26 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+)
+
+// ContextKey adalah tipe khusus untuk key request context. Dipakai bikin key
+// yang unique (public string biasa bisa bentrok antar package).
+type ContextKey string
+
+// Konstanta key untuk identitas user yang disimpan middleware JWT ke context.
+const (
+	ContextKeyClaims     ContextKey = "claims"
+	ContextKeyRole      ContextKey = "role"
+	ContextKeyUserID    ContextKey = "user_id"
+	ContextKeyEmail     ContextKey = "email"
+	ContextKeyExpiresAt ContextKey = "expires_at"
 )
 
 // ===== Konfigurasi JWT =====
@@ -97,4 +111,11 @@ func ParseToken(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+// GetClaims membaca identitas user (yang disimpan middleware JWT) dari request
+// context. Mengembalikan claims + ok=false kalau belum ada status terautentikasi.
+func GetClaims(ctx context.Context) (*Claims, bool) {
+	claims, ok := ctx.Value(ContextKeyClaims).(*Claims)
+	return claims, ok
 }
